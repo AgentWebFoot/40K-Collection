@@ -3,36 +3,497 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        
+
     </head>
 
     <body>
+        <style>
+            #app {
+                display: flex;
+                align-items: flex-start;
+                gap: 20px;
+            }
+
+            #panel {
+                width: 260px;
+                padding: 10px;
+                border: 1px solid #ccc;
+            }
+
+            #grid {
+                display: flex;
+                gap: 10px;
+            }
+
+            .hex {
+                width: 80px;
+                height: 70px;
+                clip-path: polygon(
+                    25% 0%, 75% 0%,
+                    100% 50%,
+                    75% 100%,
+                    25% 100%,
+                    0% 50%
+                );
+                cursor: pointer;
+            }
+
+            .hex.type-0 { background: black; }
+            .hex.type-1 { background: gray; }
+            .hex.type-2 { background: green; }
+
+            .hex:hover { outline: 2px solid red; }
+            .hex.selected { outline: 3px solid yellow; }
+
+        </style>
+            <div id="app">
+                <div id="panel">
+                    <h3 id="tileTitle"></h3>
+
+                    <label>
+                        <h4>Type:</h4>
+                        <input id="tileType" type="number">
+                    </label>
+
+                    <label>
+                        <h4>Location Num:</h4>
+                        <input id="locNum" type="number">
+                    </label>
+
+                    <label>
+                        <h4>Condition Num:</h4>
+                        <input id="condNum" type="number">
+                    </label>
+
+                    <hr>
+
+                    <h4>Location</h4>
+                    <div id="locName"></div>
+                    <div id="locDesc"></div>
+
+                    <h4>Condition</h4>
+                    <div id="condName"></div>
+                    <div id="condDesc"></div>
+
+                    <button onclick="applyChanges()">Apply</button>
+                </div>
+
+                <div id="grid">
+                </div>
+            </div>
         <script>
             class Location {
-                constructor(name, description = {}) {
-                    this.name = name;
-                    this.description = description;
+                constructor(tile, num = 0) {
+                    this.tile = tile;
+                    this.num = num;
+                    this.name = "";
+                    this.description = "";
+                    this.update();
                 }
 
+                getNum(){
+                    return this.num;
+                }
                 getName() {
                     return this.name;
                 }
                 getDescription() {
                     return this.description;
                 }
+
+                setNum(num) {
+                    this.num = num;
+                    this.update();
+                }
+                update(){
+                    const type = this.tile.type;
+                    if (type === 1){
+                        switch (this.num){
+                            case 0:
+                                this.name = "UNEXPLORED";
+                                this.description = "Move to or scout this tile to explore it."
+                                break;
+                            case 21:
+                                this.name = "TECTONIC FISSURE";
+                                this.description = "This hex becomes blocked.";
+                                break;
+                            case 22:
+                                this.name = "ABANDONED CAMP";
+                                this.description = "When this hex is explored, roll one D6 to determine how many Supply points it has. Search: Gain D3 of this hex's Supply points (reducing how much it has accordingly). Once it reaches 0, players cannot gain any more from it.";
+                                break;
+                            case 23:
+                                this.name = "CRYOVOLCANIC EDIFICES"
+                                this.description = "Search: You can spend 1 or 2 Supply points on the Search campaign action to use this rule. If you spent 1 Supply point, roll one D3; if you spent 2, roll two D3: On a 1, Nothing happens. On a 2, Gain D3 Supply points. On a 3, Gain 1 Campaign point. Each player cannot gain the effects of results 2 and 3 more than once each per campaign";
+                                break;
+                            case 24:
+                                this.name = "ASTEROID IMPACT";
+                                this.description = "Whenever their kill team is in this hex, players cannot perform the Resupply campaign action. Whenever a kill team is performing the Manoeuvre movement action: • It costs 1 additional Supply point to move to a surface hex from this hex. • It costs 1 less Supply point to move to a tomb hex from this hex (in other words, a kill team can move to a tomb hex for free)";
+                                break;
+                            case 25:
+                                this.name = "LANDING SITE";
+                                this.description = "Whenever their kill team is in this hex, the Encamp campaign action costs players 1 Supply point. Whenever a player performs the Resupply campaign action while their kill team is in this hex, they gain D3 additional Supply points.";
+                                break;
+                            case 26:
+                                this.name = "OBSERVATION TOWER";
+                                this.description = "Search: Immediately perform a Scout campaign action that costs 0 Supply points. You can do one of the following: • Select any unexplored surface hex (instead of one within 3 hexes) to explore. • Select one unexplored surface hex within 3 hexes to explore, then generate two valid results for the location and select one of them to use. Camp: Whenever you explore a surface hex, you can generate two valid results for the location and select one of them to use. Additionally, the Scout campaign action never costs you more than 1 Supply point whenever you select a surface hex.";
+                                break;
+                            case 31:
+                                this.name = "CRASHED SHIP";
+                                this.description = "When this hex is explored, roll one D6 to determine how much intel it has. Search: Gain D3 of this hex's intel (reducing how much it has accordingly). Once it reaches 0, players cannot gain any more from it. Each intel allows you to immediately perform a Scout campaign action that costs 0 Supply points, and you can select any unexplored surface hex (instead of one within 3 hexes) for that action, but it cannot be a tomb hex.";
+                                break;   
+                            case 32:
+                                this.name = "RESOURCE STOCKPILE";
+                                this.description = "When this hex is explored, roll 2D6 to determine how many Supply points it has. Search: Gain D6 of this hex's Supply points (reducing how much it has accordingly). Once it reaches 0, players cannot gain any more from it.";
+                                break;  
+                            case 33:
+                                this.name = "STARSTELES";
+                                this.description = "Search: Roll one D3: • On a 1, nothing happens. • On a 2, move your kill team to a different surface hex (unless that hex already contains two kill teams). • On a 3, move your kill team to a tomb hex (unless that hex already contains two kill teams). Camp: Gain 1 Campaign point (while you have a camp in this hex).";
+                                break;
+                            case 34:
+                                this.name = "BLACKSTONE OBELISK";
+                                this.description = "Search: Gain 1 Campaign point. Each player cannot search this hex more than once per campaign. Camp: Gain 1 Campaign point (while you have a camp in this hex).";
+                                break;  
+                            case 35:
+                                this.name = "FORSAKEN FORTRESS";
+                                this.description = "The first time any player performs the Encamp campaign action in this hex, they can move their base to this hex instead (their previous base becomes an Abandoned Camp location (SL22), even if that location already exists). If they do, they gain 1 Campaign point. Camp: Gain 1 Campaign point (while you have a camp in this hex). Note if you move your base to this hex as described above, you don't get this hex's camp rule as well. Search: Gain D3 Supply points. You cannot Search this hex if an opponent has a base or camp in it.";
+                                break;
+                            case 36:
+                                this.name = "BEAST LAIR";
+                                this.description = "In the Threat phase, each player within 2 surface hexes of this hex may be attacked by the beast. They roll off, adding 1 to their result for each hex they are from this hex (to a maximum of 2 hexes). The loser is attacked: they lose D6 Supply points. If only one player is within 2 surface hexes of this hex, they still roll one D6 to see if they are attacked (adding to their result as specified): on a 5+, they aren't attacked. The Encamp campaign action cannot be performed in this hex until the Demolish campaign action has been, but the Demolish campaign action cannot be performed in this hex in the same campaign round as it's explored. The first time the Demolish campaign action is performed in this hex, the beast is destroyed (ignore the above rule for the rest of the campaign).";
+                                break;      
+                            default:
+                                this.name = "RUIN";
+                                this.description = "Unlike other locations, you don't re-roll if you generate this location more than once. Other than that, it provides no additional rules.";
+                                break;
+                        }
+                    }
+                    if (type === 2){
+                        switch (this.num){
+                            case 0:
+                                this.name = "UNEXPLORED";
+                                this.description = "Move to or scout this tile to explore it."
+                                break;
+                            case 21:
+                                this.name = "TRANSDIMENSIONAL PORTAL";
+                                this.description = "Search: Select a tomb hex and a surface hex (the previously selected ones, if any, are no longer selected). In the Movement phase, if a kill team (including an opponent's) starts a Manoeuvre movement action in this hex, it can move to one of those hexes (the distance between them is treated as 1), then continue moving up to 2 more hexes as normal. This hex cannot be searched more than once per campaign round.";
+                                break;
+                            case 22:
+                                this.name = "TRANSEPTUM MAZE";
+                                this.description = "Whenever a kill team is performing the Manoeuvre movement action, it costs 1 more Supply point to move out of this hex (in other words, moving to an adjacent hex from this hex costs 2 Supply points). Camp: The Demolish campaign action cannot be performed in this hex by any player, unless it's as a result of the Doomsday Vault location (TL35). Additionally, you can ignore the above rule of this hex.";
+                                break;
+                            case 23:
+                                this.name = "CRUCIBLE OF WHISPERS"
+                                this.description = "When this hex is explored, roll one D3 to determine how many Campaign points it has. Search: You can spend 1, 3 or 5 Supply points on the Search campaign action to use this rule. If you spent 1 Supply point, roll one D6; if you spent 3, roll two D6; if you spent 5, roll three D6. If any results are 5+, you gain 1 of this hex's Campaign points (reducing how much it has accordingly). Once it reaches 0, players cannot gain any more from it. Camp: At the start of each Threat phase, you can roll one D6: on a 5+, you gain 1 of this hex's Campaign points (reducing how much it has accordingly). Once it reaches 0, players cannot gain any more from it.";
+                                break;
+                            case 24:
+                                this.name = "POWER CELL SANCTUM";
+                                this.description = "The first time the Demolish campaign action is performed in this hex, each player that has a kill team in a tomb hex (excluding the player that performed that action) loses D6 Supply points and the Encamp action cannot be performed in this hex for the rest of the campaign. Note that there doesn't have to be an opponent's camp in this hex to perform the Demolish action, but if one of your camps is, its removed Camp: Gain 1 Campaign point (while you have a camp in this hex).";
+                                break;
+                            case 25:
+                                this.name = "TRANSTECHNIC FULCRUM";
+                                this.description = "Search: Select one other tomb hex to become blocked (the previously selected one for this rule, if any, is unblocked). If it's a hex with a camp, the camp remains (as does its benefits), but is ignored for the Regroup movement action until the hex is unblocked.";
+                                break;
+                            case 26:
+                                this.name = "ENERGY HOT SPOT";
+                                this.description = "Camp: Gain 1 Campaign point (while you have a camp in this hex). Additionally, at the start of each Threat phase, you gain 1 Supply point.";
+                                break;
+                            case 31:
+                                this.name = "VIVITROPHIC TERMINAL ";
+                                this.description = "Search: Roll 2D6. You can immediately spend an amount of Supply points equal to the result to gain 1 Campaign point. Each player cannot gain more than 1 Campaign point per campaign for searching this hex. Camp: At the end of the campaign, if you have a camp in this hex and 5 or more Supply points, you gain 1 Campaign point.";
+                                break;   
+                            case 32:
+                                this.name = "HYPERFRACTAL GAOL";
+                                this.description = "The first time the Encamp campaign action is performed in this hex, the released prisoner is added to this hex. It will move around, so keep track of where it is on the campaign map. The first time the Demolish campaign action is performed in this hex, the released prisoner is removed from the campaign (even if it hasnt been added yet). Camp: At the start of each Threat phase, you can move the released prisoner up to D3 hexes. When it ends that move, unless it's in the Transeptum Maze location (TL22), subtract D6 Supply points from each other player that has a kill team in that hex (roll separately for each) and remove a camp your opponent has there (if any). If, as a result of this rule, any player loses any Supply points or a camp is removed, roll one D6 at the end of each Threat phase: on a 4+, the released prisoner is removed from the campaign.";
+                                break;  
+                            case 33:
+                                this.name = "REVIVIFICATION CRYPT";
+                                this.description = "At the start of each Action phase, each player that has a kill team in this hex can perform a free Resupply campaign action (this doesn't prevent them from performing a campaign action again this phase, excluding Resupply). Camp: At the start of each Threat phase, roll one D3: on a 2+, you gain a number of Supply points equal to the result.";
+                                break;
+                            case 34:
+                                this.name = "ASTRAL AUGURY";
+                                this.description = "Search: The first player that searches this hex gains D3 Campaign points. Each player that searches this hex thereafter gains 1 Campaign point. Each player cannot search this hex more than once per campaign.";
+                                break;  
+                            case 35:
+                                this.name = "DOOMSDAY VAULT";
+                                this.description = "When this hex is explored, roll one D3 to determine how many additional Supply points it costs to search. Search: Select one tomb hex. Immediately perform a Demolish campaign action on that hex, but this doesn't cost any additional Supply points (if your own camp is there, remove it). That hex then becomes blocked and you gain 1 Campaign point.";
+                                break;
+                            case 36:
+                                this.name = "DIMENSION MATRIX";
+                                this.description = "Search: You gain a dimensional key (unless a player already has it). In the Movement phase, you can perform the Dimensional Manoeuvre movement action instead. If you do, move your kill team to any hex (unless it already contains two kill teams) for 1 Supply point, then you no longer have the dimensional key (it's available for the next player who searches this location).";
+                                break;      
+                            default:
+                                this.name = "RUIN";
+                                this.description = "Unlike other locations, you don't re-roll if you generate this location more than once. Other than that, it provides no additional rules.";
+                                break;
+                        }
+                    }
+                }
             }
+        
             class Condition {
-                constructor(name, description = {}) {
-                    this.name = name;
-                    this.description = description;
+                constructor(tile, num = 0) {
+                    this.tile = tile;
+                    this.num = num;
+                    this.name = "";
+                    this.description = "";
+                    this.update();
                 }
 
+                getNum(){
+                    return this.num;
+                }
                 getName() {
                     return this.name;
                 }
                 getDescription() {
                     return this.description;
                 }
+
+                setNum(num) {
+                    this.num = num;
+                    this.update();
+                }
+
+                update(){
+                    const type = this.tile.type;
+                    if (type === 1){
+                        switch (this.num){
+                            case 0:
+                                this.name = "UNEXPLORED";
+                                this.description = "Move to or scout this tile to explore it."
+                                break;
+                            case 21:
+                                this.name = "DUST STORMS";
+                                this.description = "Worsen the Hit stat of an operative's ranged weapons by 1 (this isn't cumulative with being injured) unless one or more of the following is true: • Heavy terrain is within its control range. • It's wholly within a stronghold terrain feature (see Killzone: Volkus). • Any part of its base is underneath Vantage terrain.";
+                                break;
+                            case 22:
+                                this.name = "RADIATION FIELD";
+                                this.description = "Whenever an operative is activated, if there's no Heavy terrain within its control range, roll one D6: if the result is less than that operative's Save stat, inflict damage on it equal to the dice result.";
+                                break;
+                            case 23:
+                                this.name = "BLIGHTED LAND"
+                                this.description = "In the Ready step of each Strategy phase, inflict 1 damage on each operative that's on the killzone floor, excluding operatives wholly within a stronghold terrain feature (see Killzone: Volkus).";
+                                break;
+                            case 24:
+                                this.name = "MISSILE STRIKE";
+                                this.description = "In the Ready step of the first Strategy phase, one player rolls one D3 and adds 1 to the result. In the Ready step of the turning point equal to the result, inflict D6+3 damage on each operative within 6'' of the centre of the killzone (roll separately for each).";
+                                break;
+                            case 25:
+                                this.name = "MINEFIELD";
+                                this.description = "In the Set Up the Battle step, set up one Mines marker (see universal equipment) on the centre of each objective marker (taking precedence over that equipment's normal set up rules). In addition, when selecting equipment in the Select Operatives step, each player must select the mines universal equipment, but they can select up to five equipment options (instead of four).";
+                                break;
+                            case 26:
+                                this.name = "SKULL MOUNDS";
+                                this.description = "The winner of the battle gains 1 additional Campaign point. Each player cannot gain a Campaign point from this condition more than once per campaign.";
+                                break;
+                            case 31:
+                                this.name = "SUBTERRANEAN TREMORS";
+                                this.description = "Whenever an operative is performing the Charge action, subtract 1'' from its Move stat. Whenever an operative is performing the Dash action, subtract 1'' from the distance it can move.";
+                                break;   
+                            case 32:
+                                this.name = "EXOTIC PARTICLE FIELD";
+                                this.description = "Whenever a friendly operative is shooting, if the centreline is intervening, you must re-roll one of your critical successes, or one of your normal successes if there are none";
+                                break;  
+                            case 33:
+                                this.name = "METALLIC INFUSED VEGETATION";
+                                this.description = "In the Select Operatives step, when selecting equipment, each player must select the heavy barricade universal equipment, but they can select up to five equipment options (instead of four). Each player can set up their heavy barricade wholly within their territory, on the killzone floor and more than 2'' from other equipment terrain features (taking precedence over the normal rules). Whenever an operative would cross a heavy barricade within 1'' of it, inflict D3 damage on that operative.";
+                                break;
+                            case 34:
+                                this.name = "GYROMANTIC SHARDS";
+                                this.description = "Whenever a friendly operative is shooting, if any of your attack dice results are a 1 (before re-rolls), you must re-roll all of your attack dice (you cannot only re-roll some).";
+                                break;  
+                            case 35:
+                                this.name = "CRYOFLUX BLIZZARD";
+                                this.description = "Whenever a friendly operative performs the Charge action, before moving that operative, roll one D6: if the result is higher than that friendly operative's APL stat, select an enemy operative your operative can end that move within control range of (this must be possible). Your opponent then moves that friendly operative for that action, following all requirements for that move, but it must end that move within control range of the selected enemy operative. In other words, your opponent moves your operative for the action towards the enemy operative you selected.";
+                                break;
+                            case 36:
+                                this.name = "GRAVITIC ANOMALY";
+                                this.description = "Once per turning point, each player can use this rule. When a friendly operative performs an action in which it moves, it can FLY. If it does, don't move it. Instead, remove it from the killzone and set it back up wholly within a distance equal to its Move stat (or 3'' if it was a Dash) of its original location, measuring the horizontal distance only (in a killzone that uses the close quarters rules, e.g. Killzone: Tomb World, this distance cannot be measured over or through Wall terrain, and that operative cannot be set up on the other side of an access point). Note that it gains no additional distance when performing the Charge action. It must be set up in a location it can be placed, and unless it's the Charge action, it cannot be set up within control range of an enemy operative.";
+                                break;      
+                            default:
+                                this.name = "CLEAR CONDITIONS";
+                                this.description = "Unlike other conditions, you don't re-roll if you generate this condition more than once. Other than that, it provides no additional rules.";
+                                break;
+                        }
+                    }
+                    if (type === 2){
+                        switch (this.num){
+                            case 0:
+                                this.name = "UNEXPLORED";
+                                this.description = "Move to or scout this tile to explore it."
+                                break;
+                            case 21:
+                                this.name = "Darkness";
+                                this.description = "Whenever an operative is shooting an operative more than 8'' away, that target is obscured.";
+                                break;
+                            case 22:
+                                this.name = "SCARAB SWARM";
+                                this.description = "Place a Scarab Swarm marker as close as possible to the centre of the killzone. In the Ready Step of each Strategy phase, move that marker 2D3'' towards the nearest operative (if multiple operatives are equally close, players roll-off and the winner decides which operative). Once during each operative's activation, as soon as the Scarab Swarm marker is within its control range, inflict D3 damage on that operative.";
+                                break;
+                            case 23:
+                                this.name = "TESLA RUPTURE"
+                                this.description = "In the Ready step of the second and fourth Strategy phase, inflict 1 damage on each operative that has Wall terrain within its control range, or is within control range of another operative that does (this isn't cumulative).";
+                                break;
+                            case 24:
+                                this.name = "AUTOMATED SYSTEM ERROR";
+                                this.description = "In the Ready step of each Strategy phase, one player randomly determines one hatchway terrain feature (see Killzone: Tomb World). Change its status to open or closed.";
+                                break;
+                            case 25:
+                                this.name = "WEAKENED STRUCTURE";
+                                this.description = "Operatives can perform the Breach and Operate Hatch actions (see Killzone: Tomb World) for 1 less AP. This is cumulative with existing rules that are referenced in the second effect of the Breach action (e.g. operatives with the Grenadier rule on their datacard), but isn't cumulative with any other AP reductions (e.g. mission actions for 1 less AP).";
+                                break;
+                            case 26:
+                                this.name = "CRYPT FATIGUE";
+                                this.description = "In the Ready step of each Strategy phase, each player must select a number of friendly operatives equal to the turning point number (or as many as possible up to that number); they cannot select an operative with an APL stat that's less than normal. Subtract 1 from each selected operative's APL stat until the end of its next activation.";
+                                break;
+                            case 31:
+                                this.name = "TEMPORAL DIFFUSEMENT";
+                                this.description = "Whenever an operative is activated, roll one D6: • On a 1-2, subtract 1'' from its Move stat until the end of its activation. • On a 3-4, nothing happens. • On a 5+, add 1'' to its Move stat until the end of its activation.";
+                                break;   
+                            case 32:
+                                this.name = "HYPERSPATIAL BREACH";
+                                this.description = "At the end of the Set Up Operatives step, each player randomly determines one operative from their kill team. They remove that operative from the killzone. In the Ready step of the second Strategy phase, each player sets their operative back up in the killzone (starting with the player with initiative) in a location it can be placed. That operative must be within 6'' of their killzone edge or within 3'' of a friendly operative, and not within control range of enemy operatives.";
+                                break;  
+                            case 33:
+                                this.name = "XENOVIRAL DEMISE";
+                                this.description = "Whenever an operative is incapacitated, before it's removed from the killzone, roll one D6 separately for each other operative within 2'' of it. On a 4+, inflict 2 damage on that other operative.";
+                                break;
+                            case 34:
+                                this.name = "COLLAPSING TOMB";
+                                this.description = "In the Ready step of the second Strategy phase, inflict D3 damage on each operative that has a breach point within its control range (roll separately for each). Then open every breach point in the killzone.";
+                                break;  
+                            case 35:
+                                this.name = "NANOWEAVE WEB TRAPS";
+                                this.description = "Each time an operative ends the Dash action, roll one D6: on a 1, they gain one Web token until the end of their next activation. An operative that has a Web token cannot perform actions in which it moves.";
+                                break;
+                            case 36:
+                                this.name = "NEUROTECHNIC HAUNTING";
+                                this.description = "Whenever an operative is activated, if it contests an objective marker, roll one D6: on a 1-2, until the start of that operative's next activation, whenever determining control of a marker, treat that operative's APL stat as 1 lower. Note this isn't a change to the APL stat, so any changes are cumulative with this.";
+                                break;      
+                            default:
+                                this.name = "CLEAR CONDITIONS";
+                                this.description = "Unlike other conditions, you don't re-roll if you generate this condition more than once. Other than that, it provides no additional rules.";
+                                break;
+                        }
+                    }
+                }
             }
+
+            class Tile {
+                constructor(id, type = 0){
+                    this.id = id;
+                    this.type = type;
+
+                    this.location = new Location(this);
+                    this.condition = new Condition(this);
+
+                    this.isBase = false;
+                    this.isCamp = false;
+                    this.killTeam = 0;
+                }
+                getName(){
+                    return this.name;
+                }
+                getType(){
+                    return this.type;
+                }
+                getIsBase(){
+                    return this.isBase;
+                }
+                getIsCamp(){
+                    return this.isCamp;
+                }
+                getKillTeam(){
+                    return this.killTeam;
+                }
+
+                setType(type){
+                    this.type = type;
+                    this.location.update();
+                    this.condition.update();
+                }
+
+                updateVisual() {
+                    if (!this.el) return;
+
+                    this.el.classList.remove("type-0", "type-1", "type-2");
+                    this.el.classList.add(`type-${this.type}`);
+                }
+            }
+
+            const tiles = [];
+            let selectedTile = null;
+
+            const grid = document.getElementById("grid");
+
+            for (let i = 0; i < 5; i++) {
+                const tile = new Tile(i);
+                tiles.push(tile);
+
+                const el = document.createElement("div");
+                el.className = "hex type-0";
+                el.onclick = () => selectTile(tile);
+                tile.el = el;
+                tile.updateVisual();
+                grid.appendChild(el);
+            }
+            
+
+            function selectTile(tile) {
+                tiles.forEach(t => t.el.classList.remove("selected"));
+                selectedTile = tile;
+                tile.el.classList.add("selected");
+                console.log("Selected tile", tile.id);
+                renderPanel(tile);
+            }
+
+            function renderPanel(tile) {
+                tile.updateVisual();
+                document.getElementById("tileTitle").textContent =
+                    `Tile ${tile.id}`;
+
+                document.getElementById("tileType").value =
+                    tile.type;
+
+                document.getElementById("locNum").value =
+                    tile.location.num;
+                
+                document.getElementById("condNum").value =
+                    tile.condition.num;
+
+                document.getElementById("locName").textContent =
+                    tile.location.name;
+
+                document.getElementById("locDesc").textContent =
+                    tile.location.description;
+
+                document.getElementById("condName").textContent =
+                    tile.condition.name;
+
+                document.getElementById("condDesc").textContent =
+                    tile.condition.description;
+            }
+            
+
+            function applyChanges() {
+                if (!selectedTile) return;
+
+                selectedTile.setType(
+                    Number(document.getElementById("tileType").value)
+                );
+
+                selectedTile.location.setNum(
+                    Number(document.getElementById("locNum").value)
+                );
+
+                selectedTile.condition.setNum(
+                    Number(document.getElementById("condNum").value)
+                );
+
+                renderPanel(selectedTile);
+            }
+
         </script>
     </body>
 </html>

@@ -21,12 +21,33 @@
                 border: 1px solid #ccc;
             }
 
+            .legend {
+                display: inline-block;
+                width: 0;
+                height: 0;
+                margin-right: 6px;
+                vertical-align: middle;
+
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 10px solid;
+            }
+
+            .team-1 { border-top-color: red; }
+            .team-2 { border-top-color: blue; }
+            .team-3 { border-top-color: green; }
+            .team-4 { border-top-color: orange; }
+            .team-5 { border-top-color: purple; }
+            .team-6 { border-top-color: cyan; }
+
             #grid {
-                display: flex;
-                gap: 10px;
+                position: relative;
+                width: 800px;
+                height: 600px;
             }
 
             .hex {
+                position: absolute;
                 width: 80px;
                 height: 70px;
                 clip-path: polygon(
@@ -37,14 +58,41 @@
                     0% 50%
                 );
                 cursor: pointer;
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                font-size: 12px;
+                font-weight: bold;
+                color: white;
+                user-select: none;
+                overflow: visible;
             }
 
             .hex.type-0 { background: black; }
-            .hex.type-1 { background: gray; }
+            .hex.type-1 { background: rgb(52, 58, 50); }
             .hex.type-2 { background: green; }
 
-            .hex:hover { outline: 2px solid red; }
-            .hex.selected { outline: 3px solid yellow; }
+            .hex::before {
+                content: "";
+                position: absolute;
+                inset: -6px;
+                background: transparent;
+                clip-path: inherit;
+                opacity: 0;
+                z-index: -1;
+            }
+
+            .hex:hover::before {
+                background: white;
+                opacity: 0.75;
+            }
+
+            .hex.selected::before {
+                background: yellow;
+                opacity: 0.2;
+            }
 
         </style>
             <div id="app">
@@ -66,6 +114,16 @@
                         <input id="condNum" type="number">
                     </label>
 
+                    <label>
+                        <h4>Kill Team:</h4>
+                        <input id="killTeam" type="number" min="0" max="6">
+                    </label>
+
+                    <label>
+                        <h4>Base Team:</h4>
+                        <input id="baseTeam" type="number" min="0" max="6">
+                    </label>
+
                     <hr>
 
                     <h4>Location</h4>
@@ -77,10 +135,23 @@
                     <div id="condDesc"></div>
 
                     <button onclick="applyChanges()">Apply</button>
+
+                    <hr>
+                    <h4>Teams</h4>
+                    <ul id="teamLegend">
+                    <li><span class="legend team-1"></span> Team 1 – Red</li>
+                    <li><span class="legend team-2"></span> Team 2 – Blue</li>
+                    <li><span class="legend team-3"></span> Team 3 – Green</li>
+                    <li><span class="legend team-4"></span> Team 4 – Orange</li>
+                    <li><span class="legend team-5"></span> Team 5 – Purple</li>
+                    <li><span class="legend team-6"></span> Team 6 – Cyan</li>
+                    </ul>
+
                 </div>
 
                 <div id="grid">
                 </div>
+             
             </div>
         <script>
             class Location {
@@ -90,16 +161,6 @@
                     this.name = "";
                     this.description = "";
                     this.update();
-                }
-
-                getNum(){
-                    return this.num;
-                }
-                getName() {
-                    return this.name;
-                }
-                getDescription() {
-                    return this.description;
                 }
 
                 setNum(num) {
@@ -240,16 +301,6 @@
                     this.update();
                 }
 
-                getNum(){
-                    return this.num;
-                }
-                getName() {
-                    return this.name;
-                }
-                getDescription() {
-                    return this.description;
-                }
-
                 setNum(num) {
                     this.num = num;
                     this.update();
@@ -388,30 +439,25 @@
                     this.location = new Location(this);
                     this.condition = new Condition(this);
 
-                    this.isBase = false;
-                    this.isCamp = false;
+                    this.base = 0;
                     this.killTeam = 0;
-                }
-                getName(){
-                    return this.name;
-                }
-                getType(){
-                    return this.type;
-                }
-                getIsBase(){
-                    return this.isBase;
-                }
-                getIsCamp(){
-                    return this.isCamp;
-                }
-                getKillTeam(){
-                    return this.killTeam;
                 }
 
                 setType(type){
                     this.type = type;
                     this.location.update();
                     this.condition.update();
+                    this.updateVisual();
+                }
+
+                setKillTeam(team) {
+                    this.killTeam = team;
+                    this.updateTeamMarker();
+                }
+
+                setBase(base) {
+                    this.base = base;
+                    this.updateBaseMarker();
                 }
 
                 updateVisual() {
@@ -420,24 +466,135 @@
                     this.el.classList.remove("type-0", "type-1", "type-2");
                     this.el.classList.add(`type-${this.type}`);
                 }
+
+                updateTeamMarker() {
+                    if (!this.teamMarkerSvg) return;
+
+                    if (this.killTeam > 0) {
+                        console.log(`DRAW TEAM MARKER → Tile ${this.id}, Team ${this.killTeam}`);
+
+                        const colors = {
+                            1: "red",
+                            2: "blue",
+                            3: "green",
+                            4: "orange",
+                            5: "purple",
+                            6: "cyan"
+                        };
+
+                        this.teamMarker.setAttribute("fill", colors[this.killTeam]);
+                        this.teamMarkerSvg.style.display = "block";
+                    } else {
+                        console.log(`CLEAR TEAM MARKER → Tile ${this.id}`);
+                        this.teamMarkerSvg.style.display = "none";
+                    }
+                }
+
+                updateBaseMarker() {
+                    if (!this.baseMarkerSvg) return;
+
+                    if (this.base > 0) {
+                        console.log(`DRAW BASE MARKER → Tile ${this.id}, Team ${this.base}`);
+
+                        const colors = {
+                            1: "red",
+                            2: "blue",
+                            3: "green",
+                            4: "orange",
+                            5: "purple",
+                            6: "cyan"
+                        };
+
+                        this.baseMarker.setAttribute("fill", colors[this.base]);
+                        this.baseMarkerSvg.style.display = "block";
+                    } else {
+                        console.log(`CLEAR BASE MARKER → Tile ${this.id}`);
+                        this.baseMarkerSvg.style.display = "none";
+                    }
+                }
             }
+
+            const HEX_WIDTH = 80;
+            const HEX_HEIGHT = 70;
+            const HEX_H_SPACING = HEX_WIDTH * 0.75;
+            const HEX_V_SPACING = HEX_HEIGHT;
+
+            const rows = 10;
+            const cols = 7;
 
             const tiles = [];
             let selectedTile = null;
-
             const grid = document.getElementById("grid");
 
-            for (let i = 0; i < 5; i++) {
-                const tile = new Tile(i);
-                tiles.push(tile);
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const tile = new Tile(`${r}-${c}`);
+                    tiles.push(tile);
 
-                const el = document.createElement("div");
-                el.className = "hex type-0";
-                el.onclick = () => selectTile(tile);
-                tile.el = el;
-                tile.updateVisual();
-                grid.appendChild(el);
+                    const el = document.createElement("div");
+                    el.className = "hex type-0";
+
+                    const face = document.createElement("div");
+                    face.className = "hex-face";
+                    face.textContent = tile.id;
+
+                    el.appendChild(face);
+                    el.onclick = () => selectTile(tile);
+
+                    const svgNS = "http://www.w3.org/2000/svg";
+
+                    const marker = document.createElementNS(svgNS, "svg");
+                    marker.setAttribute("width", "16");
+                    marker.setAttribute("height", "14");
+                    marker.style.position = "absolute";
+                    marker.style.top = "6px";
+                    marker.style.left = "50%";
+                    marker.style.transform = "translateX(-50%)";
+                    marker.style.display = "none";
+
+                    const triangle = document.createElementNS(svgNS, "polygon");
+                    triangle.setAttribute("points", "8,0 16,14 0,14");
+
+                    const baseMarker = document.createElementNS(svgNS, "svg");
+                    baseMarker.setAttribute("width", "12");
+                    baseMarker.setAttribute("height", "12");
+                    baseMarker.style.position = "absolute";
+                    baseMarker.style.top = "50px";
+                    baseMarker.style.left = "50%";
+                    baseMarker.style.transform = "translateX(-50%)";
+                    baseMarker.style.display = "none";
+
+                    const square = document.createElementNS(svgNS, "rect");
+                    square.setAttribute("x", "0");
+                    square.setAttribute("y", "0");
+                    square.setAttribute("width", "12");
+                    square.setAttribute("height", "12");
+
+                    baseMarker.appendChild(square);
+                    el.appendChild(baseMarker);
+
+                    tile.baseMarker = square;
+                    tile.baseMarkerSvg = baseMarker;
+
+                    marker.appendChild(triangle);
+                    el.appendChild(marker);
+
+                    tile.teamMarker = triangle;
+                    tile.teamMarkerSvg = marker;
+
+                    tile.el = el;
+
+                    const x = c * HEX_H_SPACING;
+                    const y = r * HEX_V_SPACING + (c % 2 ? HEX_HEIGHT / 2 : 0);
+
+                    el.style.left = `${x}px`;
+                    el.style.top = `${y}px`;
+
+                    tile.updateVisual();
+                    grid.appendChild(el);
+                }
             }
+
             
 
             function selectTile(tile) {
@@ -450,6 +607,7 @@
 
             function renderPanel(tile) {
                 tile.updateVisual();
+
                 document.getElementById("tileTitle").textContent =
                     `Tile ${tile.id}`;
 
@@ -461,6 +619,12 @@
                 
                 document.getElementById("condNum").value =
                     tile.condition.num;
+
+                document.getElementById("killTeam").value = 
+                    tile.killTeam;
+
+                document.getElementById("baseTeam").value = 
+                    tile.base;
 
                 document.getElementById("locName").textContent =
                     tile.location.name;
@@ -475,7 +639,6 @@
                     tile.condition.description;
             }
             
-
             function applyChanges() {
                 if (!selectedTile) return;
 
@@ -489,6 +652,14 @@
 
                 selectedTile.condition.setNum(
                     Number(document.getElementById("condNum").value)
+                );
+
+                selectedTile.setKillTeam(
+                    Number(document.getElementById("killTeam").value)
+                );
+
+                selectedTile.setBase(
+                    Number(document.getElementById("baseTeam").value)
                 );
 
                 renderPanel(selectedTile);

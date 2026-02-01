@@ -9,19 +9,24 @@
 
     <body>
         <style>
+            body {
+                background-color: #1e1e1e;
+            }
             #app {
                 display: flex;
-                align-items: flex-start;
-                gap: 20px;
+                align-items: flex-start;;
+                gap: 10px;
             }
 
             #panel {
+                background-color: #2a2a2a;
+                color: #ffffff;
                 width: 260px;
                 padding: 10px;
                 border: 1px solid #ccc;
             }
 
-            .legend {
+            .TeamLegend {
                 display: inline-block;
                 width: 0;
                 height: 0;
@@ -30,17 +35,47 @@
 
                 border-left: 6px solid transparent;
                 border-right: 6px solid transparent;
-                border-top: 10px solid;
+                border-bottom: 10px solid;
+            }
+            .HexLegend {
+                display: inline-block;
+                width: 18px;
+                height: 16px;
+                margin-right: 8px;
+                vertical-align: middle;
+
+                clip-path: polygon(
+                    25% 0%, 75% 0%,
+                    100% 50%,
+                    75% 100%,
+                    25% 100%,
+                    0% 50%
+                );
+            }
+            .BaseLegend {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                margin-right: 6px;
+                vertical-align: middle;
+
+                background-color: red;
+                
             }
 
-            .team-1 { border-top-color: red; }
-            .team-2 { border-top-color: blue; }
-            .team-3 { border-top-color: green; }
-            .team-4 { border-top-color: orange; }
-            .team-5 { border-top-color: purple; }
-            .team-6 { border-top-color: cyan; }
+            .surface { background: rgb(78, 85, 62); }
+            .tomb { background: rgb(5, 29, 5); }
+            .blocked { background: black; }
+
+            .team-1 { border-bottom-color: red; }
+            .team-2 { border-bottom-color: blue; }
+            .team-3 { border-bottom-color: green; }
+            .team-4 { border-bottom-color: orange; }
+            .team-5 { border-bottom-color: purple; }
+            .team-6 { border-bottom-color: cyan; }
 
             #grid {
+                margin: 0 auto;
                 position: relative;
                 width: 800px;
                 height: 600px;
@@ -71,8 +106,8 @@
             }
 
             .hex.type-0 { background: black; }
-            .hex.type-1 { background: rgb(52, 58, 50); }
-            .hex.type-2 { background: green; }
+            .hex.type-1 { background: rgb(78, 85, 62); }
+            .hex.type-2 { background: rgb(5, 29, 5); }
 
             .hex::before {
                 content: "";
@@ -86,7 +121,7 @@
 
             .hex:hover::before {
                 background: white;
-                opacity: 0.75;
+                opacity: 0.55;
             }
 
             .hex.selected::before {
@@ -110,6 +145,11 @@
                     </label>
 
                     <label>
+                        <h4>Location Extra:</h4>
+                        <input id="setLocExtra" type="text">
+                    </label>
+
+                    <label>
                         <h4>Condition Num:</h4>
                         <input id="condNum" type="number">
                     </label>
@@ -129,6 +169,7 @@
                     <h4>Location</h4>
                     <div id="locName"></div>
                     <div id="locDesc"></div>
+                    <div id="locExtra"></div>
 
                     <h4>Condition</h4>
                     <div id="condName"></div>
@@ -137,14 +178,22 @@
                     <button onclick="applyChanges()">Apply</button>
 
                     <hr>
+                    <h4>Legend</h4>
+                    <ul id="HexLegend">
+                    <li><span class="HexLegend surface"></span> Surface</li>
+                    <li><span class="HexLegend tomb"></span> Tomb</li>
+                    <li><span class="HexLegend blocked"></span> Blocked</li>
+                    <li><span class="BaseLegend team-1"></span> Base</li>
+                    <li><span class="TeamLegend team-1"></span> Team Location</li>
+                    </ul>
                     <h4>Teams</h4>
-                    <ul id="teamLegend">
-                    <li><span class="legend team-1"></span> Team 1 – Red</li>
-                    <li><span class="legend team-2"></span> Team 2 – Blue</li>
-                    <li><span class="legend team-3"></span> Team 3 – Green</li>
-                    <li><span class="legend team-4"></span> Team 4 – Orange</li>
-                    <li><span class="legend team-5"></span> Team 5 – Purple</li>
-                    <li><span class="legend team-6"></span> Team 6 – Cyan</li>
+                    <ul id="TeamLegend">
+                    <li><span class="TeamLegend team-1"></span> Team 1 – Red</li>
+                    <li><span class="TeamLegend team-2"></span> Team 2 – Blue</li>
+                    <li><span class="TeamLegend team-3"></span> Team 3 – Green</li>
+                    <li><span class="TeamLegend team-4"></span> Team 4 – Orange</li>
+                    <li><span class="TeamLegend team-5"></span> Team 5 – Purple</li>
+                    <li><span class="TeamLegend team-6"></span> Team 6 – Cyan</li>
                     </ul>
 
                 </div>
@@ -160,6 +209,7 @@
                     this.num = num;
                     this.name = "";
                     this.description = "";
+                    this.extra = "";
                     this.update();
                 }
 
@@ -167,6 +217,10 @@
                     this.num = num;
                     this.update();
                 }
+                setExtra(extra){
+                    this.extra = extra;
+                }
+
                 update(){
                     const type = this.tile.type;
                     if (type === 1){
@@ -547,7 +601,7 @@
                     marker.setAttribute("width", "16");
                     marker.setAttribute("height", "14");
                     marker.style.position = "absolute";
-                    marker.style.top = "6px";
+                    marker.style.top = "10%";
                     marker.style.left = "50%";
                     marker.style.transform = "translateX(-50%)";
                     marker.style.display = "none";
@@ -559,7 +613,7 @@
                     baseMarker.setAttribute("width", "12");
                     baseMarker.setAttribute("height", "12");
                     baseMarker.style.position = "absolute";
-                    baseMarker.style.top = "50px";
+                    baseMarker.style.top = "70%";
                     baseMarker.style.left = "50%";
                     baseMarker.style.transform = "translateX(-50%)";
                     baseMarker.style.display = "none";
@@ -616,6 +670,9 @@
 
                 document.getElementById("locNum").value =
                     tile.location.num;
+
+                document.getElementById("setLocExtra").textContent =
+                    tile.location.extra;
                 
                 document.getElementById("condNum").value =
                     tile.condition.num;
@@ -631,12 +688,15 @@
 
                 document.getElementById("locDesc").textContent =
                     tile.location.description;
+                
+                document.getElementById("locExtra").textContent =
+                    tile.location.extra;
 
                 document.getElementById("condName").textContent =
                     tile.condition.name;
 
                 document.getElementById("condDesc").textContent =
-                    tile.condition.description;
+                    tile.condition.description;Test
             }
             
             function applyChanges() {
@@ -648,6 +708,10 @@
 
                 selectedTile.location.setNum(
                     Number(document.getElementById("locNum").value)
+                );
+
+                selectedTile.location.setExtra(
+                    document.getElementById("setLocExtra").value
                 );
 
                 selectedTile.condition.setNum(

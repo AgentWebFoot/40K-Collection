@@ -21,7 +21,7 @@
             #panel {
                 background-color: #2a2a2a;
                 color: #ffffff;
-                width: 260px;
+                width: 280px;
                 padding: 10px;
                 border: 1px solid #ccc;
             }
@@ -67,12 +67,14 @@
             .tomb { background: rgb(5, 29, 5); }
             .blocked { background: black; }
 
-            .team-1 { border-bottom-color: red; }
-            .team-2 { border-bottom-color: blue; }
-            .team-3 { border-bottom-color: green; }
-            .team-4 { border-bottom-color: orange; }
-            .team-5 { border-bottom-color: purple; }
-            .team-6 { border-bottom-color: cyan; }
+            .team-1 { border-bottom-color: OliveDrab; }
+            .team-2 { border-bottom-color: MediumAquaMarine; }
+            .team-3 { border-bottom-color: goldenrod; }
+            .team-4 { border-bottom-color: SaddleBrown; }
+            .team-5 { border-bottom-color: grey; }
+            .team-6 { border-bottom-color: Wheat; }
+            .team-7 { border-bottom-color: crimson; }
+            .team-8 { border-bottom-color: darkblue; }
 
             #grid {
                 margin: 0 auto;
@@ -136,7 +138,7 @@
 
                     <label>
                         <h4>Type:</h4>
-                        <input id="tileType" type="number">
+                        <input id="tileType" type="number" min="0" max="2">
                     </label>
 
                     <label>
@@ -156,12 +158,12 @@
 
                     <label>
                         <h4>Kill Team:</h4>
-                        <input id="killTeam" type="number" min="0" max="6">
+                        <input id="killTeam" type="number" min="0" max="8">
                     </label>
 
                     <label>
                         <h4>Base Team:</h4>
-                        <input id="baseTeam" type="number" min="0" max="6">
+                        <input id="baseTeam" type="number" min="0" max="8">
                     </label>
 
                     <hr>
@@ -188,12 +190,14 @@
                     </ul>
                     <h4>Teams</h4>
                     <ul id="TeamLegend">
-                    <li><span class="TeamLegend team-1"></span> Team 1 – Red</li>
-                    <li><span class="TeamLegend team-2"></span> Team 2 – Blue</li>
-                    <li><span class="TeamLegend team-3"></span> Team 3 – Green</li>
-                    <li><span class="TeamLegend team-4"></span> Team 4 – Orange</li>
-                    <li><span class="TeamLegend team-5"></span> Team 5 – Purple</li>
-                    <li><span class="TeamLegend team-6"></span> Team 6 – Cyan</li>
+                    <li><span class="TeamLegend team-1"></span> Wrecka Krew – AgentWebFoot</li>
+                    <li><span class="TeamLegend team-2"></span> ??? – Carguy</li>
+                    <li><span class="TeamLegend team-3"></span> Warpcoven – Dark Helmet</li>
+                    <li><span class="TeamLegend team-4"></span> Goremongers – Displacer Cub</li>
+                    <li><span class="TeamLegend team-5"></span> Grey Knights – DragonMaster</li>
+                    <li><span class="TeamLegend team-6"></span> Hernkyn Yaegris – SyperDOVE</li>
+                    <li><span class="TeamLegend team-7"></span> Nemesis Claw – VersaVice</li>
+                    <li><span class="TeamLegend team-8"></span> Warpcoven – WildFire</li>
                     </ul>
 
                 </div>
@@ -528,12 +532,14 @@
                         console.log(`DRAW TEAM MARKER → Tile ${this.id}, Team ${this.killTeam}`);
 
                         const colors = {
-                            1: "red",
-                            2: "blue",
-                            3: "green",
-                            4: "orange",
-                            5: "purple",
-                            6: "cyan"
+                            1: "OliveDrab",
+                            2: "MediumAquaMarine",
+                            3: "Goldenrod",
+                            4: "SaddleBrown",
+                            5: "Grey",
+                            6: "Wheat",
+                            7: "Crimson",
+                            8: "Darkblue"
                         };
 
                         this.teamMarker.setAttribute("fill", colors[this.killTeam]);
@@ -551,12 +557,14 @@
                         console.log(`DRAW BASE MARKER → Tile ${this.id}, Team ${this.base}`);
 
                         const colors = {
-                            1: "red",
-                            2: "blue",
-                            3: "green",
-                            4: "orange",
-                            5: "purple",
-                            6: "cyan"
+                            1: "OliveDrab",
+                            2: "MediumAquaMarine",
+                            3: "Goldenrod",
+                            4: "SaddleBrown",
+                            5: "Grey",
+                            6: "Wheat",
+                            7: "Crimson",
+                            8: "Darkblue"
                         };
 
                         this.baseMarker.setAttribute("fill", colors[this.base]);

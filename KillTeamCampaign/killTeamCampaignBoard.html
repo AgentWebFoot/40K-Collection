@@ -135,7 +135,6 @@
             <div id="app">
                 <div id="panel">
                     <h3 id="tileTitle"></h3>
-
                     <label>
                         <h4>Type:</h4>
                         <input id="tileType" type="number" min="0" max="2">
@@ -179,31 +178,31 @@
 
                     <button onclick="applyChanges()">Apply</button>
 
-                    <button onclick="exportMapData()">Export Map</button>
-
-                    <input type="file" onchange="importMapData(this.files[0])">
-
                     <hr>
                     <h4>Legend</h4>
-                    <ul id="HexLegend">
-                    <li><span class="HexLegend surface"></span> Surface</li>
-                    <li><span class="HexLegend tomb"></span> Tomb</li>
-                    <li><span class="HexLegend blocked"></span> Blocked</li>
-                    <li><span class="BaseLegend team-1"></span> Base</li>
-                    <li><span class="TeamLegend team-1"></span> Team Location</li>
-                    </ul>
-                    <h4>Teams</h4>
-                    <ul id="TeamLegend">
-                    <li><span class="TeamLegend team-1"></span> Wrecka Krew – AgentWebFoot</li>
-                    <li><span class="TeamLegend team-2"></span> ??? – Carguy</li>
-                    <li><span class="TeamLegend team-3"></span> Warpcoven – Dark Helmet</li>
-                    <li><span class="TeamLegend team-4"></span> Goremongers – Displacer Cub</li>
-                    <li><span class="TeamLegend team-5"></span> Grey Knights – DragonMaster</li>
-                    <li><span class="TeamLegend team-6"></span> Hernkyn Yaegris – SyperDOVE</li>
-                    <li><span class="TeamLegend team-7"></span> Nemesis Claw – VersaVice</li>
-                    <li><span class="TeamLegend team-8"></span> Warpcoven – WildFire</li>
-                    </ul>
+                        <ul id="HexLegend">
+                        <li><span class="HexLegend surface"></span> Surface</li>
+                        <li><span class="HexLegend tomb"></span> Tomb</li>
+                        <li><span class="HexLegend blocked"></span> Blocked</li>
+                        <li><span class="BaseLegend team-1"></span> Base</li>
+                        <li><span class="TeamLegend team-1"></span> Team Location</li>
+                        </ul>
+                        <h4>Teams</h4>
+                        <ul id="TeamLegend">
+                        <li><span class="TeamLegend team-1"></span> Wrecka Krew – AgentWebFoot</li>
+                        <li><span class="TeamLegend team-2"></span> ??? – Carguy</li>
+                        <li><span class="TeamLegend team-3"></span> Warpcoven – Dark Helmet</li>
+                        <li><span class="TeamLegend team-4"></span> Goremongers – Displacer Cub</li>
+                        <li><span class="TeamLegend team-5"></span> Grey Knights – DragonMaster</li>
+                        <li><span class="TeamLegend team-6"></span> Hernkyn Yaegris – SyperDOVE</li>
+                        <li><span class="TeamLegend team-7"></span> Nemesis Claw – VersaVice</li>
+                        <li><span class="TeamLegend team-8"></span> Warpcoven – WildFire</li>
+                        </ul>
 
+                        <hr>
+                        <button onclick="exportMapData()">Export Map</button>
+                        <hr>
+                        <input type="file" onchange="importMapData(this.files[0])">
                 </div>
 
                 <div id="grid">

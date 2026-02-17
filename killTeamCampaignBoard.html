@@ -179,6 +179,10 @@
 
                     <button onclick="applyChanges()">Apply</button>
 
+                    <button onclick="exportMapData()">Export Map</button>
+
+                    <input type="file" onchange="importMapData(this.files[0])">
+
                     <hr>
                     <h4>Legend</h4>
                     <ul id="HexLegend">
@@ -735,6 +739,50 @@
                 );
 
                 renderPanel(selectedTile);
+            }
+
+            function exportMapData() {
+                const data = {
+                    rows,
+                    cols,
+                    tiles: tiles.map(t => ({
+                        id: t.id,
+                        type: t.type,
+                        locationNum: t.location.num,
+                        locationExtra: t.location.extra,
+                        conditionNum: t.condition.num,
+                        killTeam: t.killTeam,
+                        base: t.base
+                    }))
+                };
+
+                const blob = new Blob(
+                    [JSON.stringify(data, null, 2)],
+                    { type: "application/json" }
+                );
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "campaign-map.json";
+                link.click();
+            }
+
+            function importMapData(file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const data = JSON.parse(e.target.result);
+
+                    data.tiles.forEach((tileData, i) => {
+                        const t = tiles[i];
+                        t.setType(tileData.type);
+                        t.location.setNum(tileData.locationNum);
+                        t.location.setExtra(tileData.locationExtra);
+                        t.condition.setNum(tileData.conditionNum);
+                        t.setKillTeam(tileData.killTeam);
+                        t.setBase(tileData.base);
+                    });
+                };
+                reader.readAsText(file);
             }
 
         </script>

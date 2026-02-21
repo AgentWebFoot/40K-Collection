@@ -159,7 +159,7 @@
             <li><span class="HexLegend surface"></span> Surface</li>
             <li><span class="HexLegend tomb"></span> Tomb</li>
             <li><span class="HexLegend blocked"></span> Blocked</li>
-            <li><span class="BaseLegend team-1"></span> Base</li>
+            <li><span class="BaseLegend team-1"></span> Base/Camp</li>
             <li><span class="TeamLegend team-1"></span> Team Location</li>
         </ul>
 
@@ -660,7 +660,7 @@ function showTileInfo(tile) {
     }
 
     if (tile.base > 0) {
-        baseEl.textContent = "Base: " + TEAM_NAMES[tile.base];
+        baseEl.textContent = "Base/Camp: " + TEAM_NAMES[tile.base];
         baseEl.style.display = "block";
     } 
     else {

@@ -107,7 +107,7 @@
       "locationNum": 0,
       "locationExtra": "",
       "conditionNum": 0,
-      "killTeam": 6,
+      "killTeam": 0,
       "base": 6
     },
     {
@@ -149,10 +149,10 @@
     {
       "id": "2-4",
       "type": 2,
-      "locationNum": 0,
+      "locationNum": 35,
       "locationExtra": "",
-      "conditionNum": 0,
-      "killTeam": 0,
+      "conditionNum": 12,
+      "killTeam": 6,
       "base": 0
     },
     {

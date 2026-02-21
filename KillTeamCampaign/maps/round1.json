@@ -1,0 +1,492 @@
+{
+  "rows": 9,
+  "cols": 6,
+  "tiles": [
+    {
+      "id": "0-0",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "0-1",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "0-2",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 3,
+      "base": 3
+    },
+    {
+      "id": "0-3",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "0-4",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "0-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "1-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 8,
+      "base": 8
+    },
+    {
+      "id": "1-1",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "1-2",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "1-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "1-4",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "1-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 6,
+      "base": 6
+    },
+    {
+      "id": "2-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "2-1",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "2-2",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "2-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "2-4",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "2-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "3-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 4,
+      "base": 4
+    },
+    {
+      "id": "3-1",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "3-2",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "3-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "3-4",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "3-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 2,
+      "base": 2
+    },
+    {
+      "id": "4-0",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "4-1",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "4-2",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "4-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "4-4",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "4-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "5-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "5-1",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "5-2",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "5-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "5-4",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "5-5",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "6-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 5,
+      "base": 5
+    },
+    {
+      "id": "6-1",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "6-2",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "6-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "6-4",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "6-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 1,
+      "base": 1
+    },
+    {
+      "id": "7-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "7-1",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "7-2",
+      "type": 2,
+      "locationNum": 21,
+      "locationExtra": "",
+      "conditionNum": 25,
+      "killTeam": 7,
+      "base": 0
+    },
+    {
+      "id": "7-3",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "7-4",
+      "type": 2,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "7-5",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "8-0",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "8-1",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "8-2",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 7
+    },
+    {
+      "id": "8-3",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "8-4",
+      "type": 1,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    },
+    {
+      "id": "8-5",
+      "type": 0,
+      "locationNum": 0,
+      "locationExtra": "",
+      "conditionNum": 0,
+      "killTeam": 0,
+      "base": 0
+    }
+  ]
+}

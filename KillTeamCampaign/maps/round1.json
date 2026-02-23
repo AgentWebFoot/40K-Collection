@@ -26,7 +26,7 @@
       "locationNum": 0,
       "locationExtra": "",
       "conditionNum": 0,
-      "killTeam": 3,
+      "killTeam": 0,
       "base": 3
     },
     {
@@ -77,10 +77,10 @@
     {
       "id": "1-2",
       "type": 2,
-      "locationNum": 0,
+      "locationNum": 26,
       "locationExtra": "",
-      "conditionNum": 0,
-      "killTeam": 0,
+      "conditionNum": 23,
+      "killTeam": 3,
       "base": 0
     },
     {
@@ -150,7 +150,7 @@
       "id": "2-4",
       "type": 2,
       "locationNum": 35,
-      "locationExtra": "",
+      "locationExtra": "1 Additional Supply Point Cost",
       "conditionNum": 12,
       "killTeam": 6,
       "base": 0

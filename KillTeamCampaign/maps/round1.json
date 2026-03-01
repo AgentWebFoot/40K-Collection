@@ -168,7 +168,7 @@
       "id": "3-0",
       "type": 1,
       "locationNum": 0,
-      "locationExtra": "",
+      "locationExtra": "TRANSDIMENSIONAL PORTAL",
       "conditionNum": 0,
       "killTeam": 0,
       "base": 4
@@ -402,7 +402,7 @@
       "id": "7-2",
       "type": 2,
       "locationNum": 21,
-      "locationExtra": "",
+      "locationExtra": "TRANSDIMENSIONAL PORTAL",
       "conditionNum": 25,
       "killTeam": 7,
       "base": 0

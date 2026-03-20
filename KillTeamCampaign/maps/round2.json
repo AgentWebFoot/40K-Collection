@@ -144,7 +144,7 @@
       "locationExtra": "",
       "conditionNum": 36,
       "killTeam": 6,
-      "base": 0
+      "base": 6
     },
     {
       "id": "2-4",
@@ -153,7 +153,7 @@
       "locationExtra": "",
       "conditionNum": 12,
       "killTeam": 4,
-      "base": 0
+      "base": 4
     },
     {
       "id": "2-5",
@@ -252,7 +252,7 @@
       "locationExtra": "",
       "conditionNum": 11,
       "killTeam": 5,
-      "base": 0
+      "base": 5
     },
     {
       "id": "4-4",
@@ -293,9 +293,9 @@
     {
       "id": "5-2",
       "type": 2,
-      "locationNum": 0,
-      "locationExtra": "",
-      "conditionNum": 0,
+      "locationNum": 23,
+      "locationExtra": "1 Campaign Point",
+      "conditionNum": 21,
       "killTeam": 0,
       "base": 0
     },

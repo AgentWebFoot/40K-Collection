@@ -194,9 +194,9 @@
     {
       "id": "3-3",
       "type": 2,
-      "locationNum": 0,
+      "locationNum": 11,
       "locationExtra": "",
-      "conditionNum": 0,
+      "conditionNum": 22,
       "killTeam": 0,
       "base": 0
     },

@@ -9,3 +9,6 @@ Warhammer Kill Team is a secondary game system found within the Warhammer 40k un
 
 ## 40k Grid
 This program is designed to allow for the creation of custom battlefield layouts for Warhammer 40k. This project from the collection is currently on hiatus. 
+
+## Kill Team Character Sheet
+Currently, if one wants to create their own custom Kill Team units or NPO (Non-Player Operatives) within the game of Warhammer Kill Team, there is no true official template. The goal of this project was to create that template for people to utilize. This project from the collection is currently on hiatus. 

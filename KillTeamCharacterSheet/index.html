@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="./style.css">
+  
+  <style>
+    a, button, input, select, h1, h2, h3, h4, h5, * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border: none;
+      text-decoration: none;
+      background: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    menu, ol, ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    input {
+      width: 100px;
+      padding: 5px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    
+    .name-input {
+      width: 200px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+  </style>
+  <title>Kill Team Template</title>
+</head>
+<body>
+  <div class="topHead">
+    <img class="kill-team-top" src="kill-team-top.png" alt="Kill Team" />
+    <input type="text" class="apl" value="0" />
+    <input type="text" class="move" value="0" />
+    <input type="text" class="save" value="0" />
+    <input type="text" class="wounds" value="0" />
+    <input type="text" class="name name-input" value="NAME" />
+  </div>
+
+  <!-- Page 1 -->
+  <div id="weapon">
+    <div id="page1" class="page active">
+      <div id="weapon-profile-titles" class="weapon-profile-titles">
+        <div class="weapon-name-title">Name</div>
+        <div class="weapon-atk-title">ATK</div>
+        <div class="weapon-hit-title">HIT</div>
+        <div class="weapon-dmg-title">DMG</div>
+        <div class="weapon-wr-title">WR</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="weapon-profiles-container">
+        <div class="weapon-profile">
+          <!-- Icon Selection -->
+          <div class="icon-select">
+            <img class="icon ranged" src="ranged-icon.png" alt="Ranged Icon" />
+            <img class="icon melee hidden" src="melee-icon.png" alt="Melee Icon" />
+          </div>
+          <!-- Weapon Details -->
+          <input type="text" class="weapon-name" placeholder="Weapon Name" />
+          <input type="text" class="weapon-atk" placeholder="ATK" />
+          <input type="text" class="weapon-hit" placeholder="HIT" />
+          <input type="text" class="weapon-dmg" placeholder="DMG" />
+          <input type="text" class="weapon-wr" placeholder="WR" />
+          <!-- Remove Button -->
+          <button class="remove-profile">X</button>
+        </div>
+      </div>
+      <!-- Add New Weapon Profile Button -->
+      <button id="add-weapon-profile">+</button>
+      <div class="divider2"></div>
+    </div>
+  </div>
+  <div id="pages-container">
+    <!-- Pages will be dynamically added here -->
+  </div>
+
+</body>
+
+<footer class="footer">
+  <button id="add-ability-btn" class="footer-btn">Add Ability</button>
+  <button id="prev-page-btn" class="footer-btn">Previous Page</button>
+  <span id="page-number-display" class="page-number-display">Page 1 of 1</span>
+  <button id="next-page-btn" class="footer-btn">Next Page</button>
+  <button id="save-button" class="footer-btn">Save Statblock</button>
+  <button id="upload-button" class="footer-btn">Upload Statblock</button>
+  <button id="toggle-button" class="footer-btn">Toggle Add/Remove</button>
+  <button id="capture-button" class="footer-btn">Capture Statblock</button>
+</footer>
+
+<script>
+let pages = [];
+const maxAbilitiesPerPage = 2;
+
+function createAbilitySection() {
+  // Create ability section container
+  const abilitySection = document.createElement("div");
+  abilitySection.className = "ability-section";
+
+  // Create container for title and remove button
+  const titleContainer = document.createElement("div");
+  titleContainer.className = "title-container";
+
+  // Title input
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.className = "ability-title";
+  titleInput.placeholder = "Ability Title";
+
+  // Remove button
+  const removeButton = document.createElement("button");
+  removeButton.className = "remove-ability-btn";
+  removeButton.textContent = "X";
+
+  // Append title and remove button to title container
+  titleContainer.appendChild(titleInput);
+  titleContainer.appendChild(removeButton);
+
+  // Description textarea
+  const descriptionTextarea = document.createElement("textarea");
+  descriptionTextarea.className = "ability-description";
+  descriptionTextarea.placeholder = "Ability Description";
+
+  // Remove button functionality
+  removeButton.addEventListener("click", () => {
+    const parentPage = abilitySection.parentElement;
+    parentPage.removeChild(abilitySection);
+
+    // Check if the parent page is empty
+    if (parentPage.childElementCount === 0) {
+      // Find the index of the parent page in the `pages` array
+      const pageIndex = pages.indexOf(parentPage);
+
+      // Ensure the first page is never removed
+      if (pageIndex > 0) {
+        // Remove the page from the DOM and the `pages` array
+        parentPage.remove();
+        pages.splice(pageIndex, 1);
+      }
+    }
+
+    // Update page navigation and ensure proper syncing
+    updatePageNavigation();
+  });
+
+  // Append title container and description to ability section
+  abilitySection.appendChild(titleContainer);
+  abilitySection.appendChild(descriptionTextarea);
+
+  return abilitySection;
+}
+
+function addAbility() {
+  const newAbility = createAbilitySection();
+
+  // Find the first page with room for an ability
+  let abilityAdded = false;
+
+  for (const page of pages) {
+    if (page.childElementCount < maxAbilitiesPerPage) {
+      page.appendChild(newAbility);
+      abilityAdded = true;
+      break;
+    }
+  }
+
+  // If no existing page has room, create a new page
+  if (!abilityAdded) {
+    const newPage = document.createElement("div");
+    newPage.className = "page";
+    document.getElementById("pages-container").appendChild(newPage);
+    newPage.appendChild(newAbility);
+    pages.push(newPage);
+
+    // Make the new page active if it's the only page
+    if (pages.length === 1) {
+      newPage.style.display = "flex";
+    }
+  }
+
+  // Ensure the current page is visible
+  updatePageNavigation(); // Update navigation to reflect the current state
+}
+
+function updatePageNavigation() {
+  const pageNumberDisplay = document.getElementById("page-number-display");
+
+  // Update the page number display for the first visible page
+  const activePageIndex = pages.findIndex((page) => page.style.display === "block");
+  const currentPageIndex = activePageIndex !== -1 ? activePageIndex : 0;
+
+  pageNumberDisplay.textContent = `Page ${currentPageIndex + 1} of ${pages.length}`;
+}
+
+function updatePageNavigation() {
+  const pageNumberDisplay = document.getElementById("page-number-display");
+  const weaponProfile = document.getElementById("weapon");
+
+  // Find the index of the currently active page
+  const activePageIndex = pages.findIndex((page) => page.style.display === "flex");
+  const currentPageIndex = activePageIndex !== -1 ? activePageIndex : 0;
+
+  // Update the page number display
+  pageNumberDisplay.textContent = `Page ${currentPageIndex + 1} of ${pages.length}`;
+
+  // Ensure only the active page is displayed
+  pages.forEach((page, index) => {
+    page.style.display = index === currentPageIndex ? "flex" : "none";
+  });
+
+  // Show weapon profile only on page 1
+  weaponProfile.style.display = currentPageIndex === 0 ? "block" : "none";
+}
+// Add functionality to buttons
+document.getElementById("add-ability-btn").addEventListener("click", addAbility);
+
+document.getElementById("prev-page-btn").addEventListener("click", () => {
+  const currentPageIndex = pages.findIndex((page) => page.style.display === "flex");
+  if (currentPageIndex > 0) {
+    pages[currentPageIndex].style.display = "none";
+    pages[currentPageIndex - 1].style.display = "flex";
+    updatePageNavigation(); // Refresh navigation display
+  }
+});
+
+document.getElementById("next-page-btn").addEventListener("click", () => {
+  const currentPageIndex = pages.findIndex((page) => page.style.display === "flex");
+  if (currentPageIndex < pages.length - 1) {
+    pages[currentPageIndex].style.display = "none";
+    pages[currentPageIndex + 1].style.display = "flex";
+    updatePageNavigation(); // Refresh navigation display
+  }
+});
+
+  // Function to toggle between melee and ranged icons
+  function toggleIcon(event) {
+    const parent = event.target.parentElement;
+    const rangedIcon = parent.querySelector(".ranged");
+    const meleeIcon = parent.querySelector(".melee");
+
+    if (event.target.classList.contains("ranged")) {
+      rangedIcon.classList.add("hidden");
+      meleeIcon.classList.remove("hidden");
+    } else if (event.target.classList.contains("melee")) {
+      meleeIcon.classList.add("hidden");
+      rangedIcon.classList.remove("hidden");
+    }
+  }
+
+  // Function to add a new weapon profile
+  function addWeaponProfile() {
+    const container = document.getElementById("weapon-profiles-container");
+    const newProfile = document.createElement("div");
+    newProfile.className = "weapon-profile";
+
+    newProfile.innerHTML = `
+      <div class="icon-select">
+        <img class="icon ranged" src="ranged-icon.png" alt="Ranged Icon" />
+        <img class="icon melee hidden" src="melee-icon.png" alt="Melee Icon" />
+      </div>
+      <input type="text" class="weapon-name" placeholder="Weapon Name" />
+      <input type="text" class="weapon-atk" placeholder="ATK" />
+      <input type="text" class="weapon-hit" placeholder="HIT" />
+      <input type="text" class="weapon-dmg" placeholder="DMG" />
+      <input type="text" class="weapon-wr" placeholder="WR" />
+      <button class="remove-profile">X</button>
+    `;
+
+    container.appendChild(newProfile);
+
+    const rangedIcon = newProfile.querySelector(".ranged");
+    const meleeIcon = newProfile.querySelector(".melee");
+    rangedIcon.addEventListener("click", toggleIcon);
+    meleeIcon.addEventListener("click", toggleIcon);
+
+    const removeButton = newProfile.querySelector(".remove-profile");
+    removeButton.addEventListener("click", () => container.removeChild(newProfile));
+  }
+
+  document.getElementById("add-weapon-profile").addEventListener("click", addWeaponProfile);
+
+  document.querySelectorAll(".weapon-profile .melee, .weapon-profile .ranged").forEach(icon => {
+    icon.addEventListener("click", toggleIcon);
+  });
+
+  document.getElementById("save-button").addEventListener("click", saveStatblock);
+
+function saveStatblock() {
+  // Gather data
+  const statblock = {
+    apl: document.querySelector(".apl").value,
+    move: document.querySelector(".move").value,
+    save: document.querySelector(".save").value,
+    wounds: document.querySelector(".wounds").value,
+    name: document.querySelector(".name-input").value,
+    weapons: Array.from(document.querySelectorAll(".weapon-profile")).map(profile => ({
+      name: profile.querySelector(".weapon-name").value,
+      atk: profile.querySelector(".weapon-atk").value,
+      hit: profile.querySelector(".weapon-hit").value,
+      dmg: profile.querySelector(".weapon-dmg").value,
+      wr: profile.querySelector(".weapon-wr").value,
+      type: profile.querySelector(".ranged").classList.contains("hidden") ? "melee" : "ranged"
+    })),
+    abilities: pages.map(page => 
+      Array.from(page.querySelectorAll(".ability-section")).map(section => ({
+        title: section.querySelector(".ability-title").value,
+        description: section.querySelector(".ability-description").value
+      }))
+    )
+  };
+
+  // Convert to JSON string
+  const jsonString = JSON.stringify(statblock, null, 2);
+
+  // Create a Blob
+  const blob = new Blob([jsonString], { type: "application/json" });
+
+  // Create an anchor and trigger download
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${statblock.name || "statblock"}.json`;
+  a.click();
+}
+
+document.getElementById("upload-button").addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  
+  input.addEventListener("change", event => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = JSON.parse(reader.result);
+
+        // Populate fields
+        document.querySelector(".apl").value = data.apl || "";
+        document.querySelector(".move").value = data.move || "";
+        document.querySelector(".save").value = data.save || "";
+        document.querySelector(".wounds").value = data.wounds || "";
+        document.querySelector(".name-input").value = data.name || "";
+
+        // Populate weapons
+        const weaponContainer = document.getElementById("weapon-profiles-container");
+        weaponContainer.innerHTML = ""; // Clear existing profiles
+        data.weapons.forEach(weapon => {
+          const newProfile = document.createElement("div");
+          newProfile.className = "weapon-profile";
+          newProfile.innerHTML = `
+            <div class="icon-select">
+              <img class="icon ranged ${weapon.type === "melee" ? "hidden" : ""}" src="ranged-icon.png" alt="Ranged Icon" />
+              <img class="icon melee ${weapon.type === "ranged" ? "hidden" : ""}" src="melee-icon.png" alt="Melee Icon" />
+            </div>
+            <input type="text" class="weapon-name" value="${weapon.name}" />
+            <input type="text" class="weapon-atk" value="${weapon.atk}" />
+            <input type="text" class="weapon-hit" value="${weapon.hit}" />
+            <input type="text" class="weapon-dmg" value="${weapon.dmg}" />
+            <input type="text" class="weapon-wr" value="${weapon.wr}" />
+            <button class="remove-profile">X</button>
+          `;
+          weaponContainer.appendChild(newProfile);
+        });
+
+        // Populate abilities
+        pages.forEach(page => page.innerHTML = ""); // Clear all pages
+        data.abilities.forEach((abilities, index) => {
+          const page = pages[index] || document.createElement("div");
+          page.className = "page";
+          abilities.forEach(ability => {
+            const abilitySection = createAbilitySection();
+            abilitySection.querySelector(".ability-title").value = ability.title;
+            abilitySection.querySelector(".ability-description").value = ability.description;
+            page.appendChild(abilitySection);
+          });
+          if (!pages[index]) {
+            pages.push(page);
+            document.getElementById("pages-container").appendChild(page);
+          }
+        });
+
+        updatePageNavigation(); // Refresh navigation
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  input.click();
+});
+</script>
+</html>

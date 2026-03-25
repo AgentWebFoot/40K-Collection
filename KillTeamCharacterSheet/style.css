@@ -1,0 +1,308 @@
+input.apl,
+input.move,
+input.save,
+input.wounds,
+input.name {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Inter-Regular", sans-serif;
+  font-size: 48px;
+  font-weight: 400;
+  position: absolute;
+  width: 100px; /* Adjust width as needed */
+  height: 50px; /* Adjust height as needed */
+  background: transparent; /* Match original background */
+  border: none; /* Remove input borders */
+  outline: none; /* Remove focus outline */
+  box-sizing: border-box; /* Match box-sizing with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Specific positioning for each field */
+input.apl {
+  left: 1005px; /* Pixel position for APL input */
+  top: 114px;   /* Pixel position for APL input */
+}
+input.move {
+  left: 1115px; /* Pixel position for MOVE input */
+  top: 114px;   /* Pixel position for MOVE input */
+}
+input.save {
+  left: 1230px; /* Pixel position for SAVE input */
+  top: 114px;   /* Pixel position for SAVE input */
+}
+input.wounds {
+  left: 1350px; /* Pixel position for WOUNDS input */
+  top: 114px;   /* Pixel position for WOUNDS input */
+}
+input.name {
+  font-family: "Inconsolata-ExtraBold", sans-serif;
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 62px;
+  text-align: right;
+  left: -350px;  /* Pixel position for NAME input */
+  top: 33px;    /* Pixel position for NAME input */
+  width: auto; /* Start with auto width */
+  height: auto; /* Allow the height to adjust naturally */
+  white-space: nowrap; /* Prevent text from wrapping */
+}
+
+#pages-container {
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.page {
+  display: flex; /* Use Flexbox for horizontal layout */
+  justify-content: flex-start; /* Align abilities from the left */
+  gap: 20px; /* Add spacing between abilities */
+  flex-wrap: wrap; /* Allow wrapping to the next row if needed */
+  padding: 20px;
+}
+
+.page.active {
+  display: flex; /* Show only the active page */
+}
+
+.title-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ability-title {
+  flex: 1;
+  margin-right: 8px;
+}
+
+.ability-description {
+  width: 100%;
+  height: 60px;
+  resize: none;
+}
+
+.remove-ability-btn {
+  cursor: pointer;
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 0;
+}
+
+.weapon-name-title,
+.weapon-atk-title,
+.weapon-hit-title,
+.weapon-dmg-title,
+.weapon-wr-title{
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.weapon-name-title{
+  margin-left: 64px; /* Space between input fields within each profile */
+}
+
+.weapon-atk-title{
+  margin-left: 267px; /* Space between input fields within each profile */
+}
+
+.weapon-hit-title{
+  margin-left: 125px; /* Space between input fields within each profile */
+}
+
+.weapon-dmg-title{
+  margin-left: 125px; /* Space between input fields within each profile */
+}
+
+.weapon-wr-title{
+  margin-left: 125px; /* Space between input fields within each profile */
+}
+
+.divider {
+  width: 100%;          /* Make the divider span the full width of the screen */
+  height: 4px;          /* Set the height of the line */
+  background-color: #f06e3c; /* Set the color of the line */
+  margin: 20px 0;       /* Add vertical spacing above and below the divider */
+}
+.divider2 {
+  width: 100%;          /* Make the divider span the full width of the screen */
+  height: 3px;          /* Set the height of the line */
+  background-color: #f06e3c; /* Set the color of the line */
+  margin: 20px 0;       /* Add vertical spacing above and below the divider */
+}
+
+.icon {
+  width: 32px;
+  height: 16px;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  margin-left: 15px;
+}
+
+.icon.hidden {
+  display: none;
+}
+
+input.weapon-name {
+  min-width: 300px;
+  width: auto; /* Automatically adjust width */
+  max-width: 450px; /* Set a max width to prevent overflow */
+  background: transparent; /* Match original background */
+  border: none; /* Remove input borders */
+  outline: none; /* Remove focus outline */
+  box-sizing: border-box; /* Match box-sizing with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input.weapon-atk{
+  margin-left: 10px; /* Space between input fields within each profile */
+  min-width: 100px;
+  width: auto; /* Automatically adjust width */
+  max-width: 150px;
+  background: transparent; /* Match original background */
+  border: none; /* Remove input borders */
+  outline: none; /* Remove focus outline */
+  box-sizing: border-box; /* Match box-sizing with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input.weapon-hit{
+  margin-left: 10px; /* Space between input fields within each profile */
+  min-width: 100px;
+  width: auto; /* Automatically adjust width */
+  max-width: 150px;
+  background: transparent; /* Match original background */
+  border: none; /* Remove input borders */
+  outline: none; /* Remove focus outline */
+  box-sizing: border-box; /* Match box-sizing with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input.weapon-dmg{
+  margin-left: 10px; /* Space between input fields within each profile */
+  min-width: 100px;
+  width: auto; /* Automatically adjust width */
+  max-width: 150px;
+  background: transparent; /* Match original background */
+  border: none; /* Remove input borders */
+  outline: none; /* Remove focus outline */
+  box-sizing: border-box; /* Match box-sizing with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input.weapon-wr {
+  min-width: 450px;
+  width: auto; /* Automatically adjust width */
+  max-width: 600px; /* Set a max width to prevent overflow */
+  background: transparent; /* Match original background */
+  border: none; /* Remove input borders */
+  outline: none; /* Remove focus outline */
+  box-sizing: border-box; /* Match box-sizing with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weapon-profile-titles {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.weapon-profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.icon-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weapon-profile:nth-child(even) {
+  background-color: lightgray; /* Light gray background */
+}
+
+.weapon-profile:nth-child(odd) {
+  background-color: white; /* White background for contrast */
+}
+
+button.remove-profile {
+  background-color: red;
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 5px 10px;
+}
+
+button#add-weapon-profile {
+  margin-top: 10px;
+  background-color: green;
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 5px 15px;
+  font-size: 18px;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #333;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.footer-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin: 0 10px;
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 5px;
+}
+
+.footer-btn:hover {
+  background-color: #45a049;
+}
+
+.page-number-display {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 0 10px;
+  display: inline-block;
+  color: #ffffff;
+}

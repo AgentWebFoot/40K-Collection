@@ -123,9 +123,9 @@
       "id": "2-1",
       "type": 2,
       "locationNum": 24,
-      "locationExtra": "When destroyed: loose command point",
+      "locationExtra": "",
       "conditionNum": 11,
-      "killTeam": 8,
+      "killTeam": 7,
       "base": 8
     },
     {
@@ -170,7 +170,7 @@
       "locationNum": 1,
       "locationExtra": "",
       "conditionNum": 1,
-      "killTeam": 7,
+      "killTeam": 0,
       "base": 4
     },
     {
@@ -197,7 +197,7 @@
       "locationNum": 11,
       "locationExtra": "",
       "conditionNum": 22,
-      "killTeam": 0,
+      "killTeam": 2,
       "base": 0
     },
     {
@@ -260,7 +260,7 @@
       "locationNum": 16,
       "locationExtra": "",
       "conditionNum": 32,
-      "killTeam": 2,
+      "killTeam": 0,
       "base": 0
     },
     {
@@ -287,7 +287,7 @@
       "locationNum": 22,
       "locationExtra": "",
       "conditionNum": 15,
-      "killTeam": 0,
+      "killTeam": 8,
       "base": 0
     },
     {

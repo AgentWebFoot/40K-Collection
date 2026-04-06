@@ -189,7 +189,7 @@
       "locationExtra": "",
       "conditionNum": 24,
       "killTeam": 6,
-      "base": 0
+      "base": 6
     },
     {
       "id": "3-3",
@@ -230,9 +230,9 @@
     {
       "id": "4-1",
       "type": 2,
-      "locationNum": 0,
+      "locationNum": 11,
       "locationExtra": "",
-      "conditionNum": 0,
+      "conditionNum": 13,
       "killTeam": 0,
       "base": 0
     },
@@ -297,7 +297,7 @@
       "locationExtra": "",
       "conditionNum": 21,
       "killTeam": 1,
-      "base": 0
+      "base": 1
     },
     {
       "id": "5-3",
@@ -356,9 +356,9 @@
     {
       "id": "6-3",
       "type": 2,
-      "locationNum": 0,
+      "locationNum": 16,
       "locationExtra": "",
-      "conditionNum": 0,
+      "conditionNum": 26,
       "killTeam": 0,
       "base": 0
     },

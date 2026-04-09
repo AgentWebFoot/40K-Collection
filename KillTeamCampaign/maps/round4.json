@@ -125,7 +125,7 @@
       "locationNum": 24,
       "locationExtra": "",
       "conditionNum": 11,
-      "killTeam": 7,
+      "killTeam": 8,
       "base": 8
     },
     {
@@ -134,7 +134,7 @@
       "locationNum": 15,
       "locationExtra": "",
       "conditionNum": 31,
-      "killTeam": 3,
+      "killTeam": 0,
       "base": 0
     },
     {
@@ -188,7 +188,7 @@
       "locationNum": 32,
       "locationExtra": "",
       "conditionNum": 24,
-      "killTeam": 0,
+      "killTeam": 3,
       "base": 6
     },
     {
@@ -287,7 +287,7 @@
       "locationNum": 22,
       "locationExtra": "",
       "conditionNum": 15,
-      "killTeam": 8,
+      "killTeam": 0,
       "base": 0
     },
     {
@@ -458,7 +458,7 @@
       "locationNum": 1,
       "locationExtra": "",
       "conditionNum": 1,
-      "killTeam": 0,
+      "killTeam": 7,
       "base": 7
     },
     {

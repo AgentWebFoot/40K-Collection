@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        
+
+    </head>
+
+    <body>
+        <style>
+            body {
+                margin: 0;
+                min-height: 100vh;
+                background-color: #1e1e1e;
+                color: #ffffff;
+                font-family: system-ui, sans-serif;
+            }
+
+            #app {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                height: 100vh;
+                width: 100vw;
+                overflow: hidden;
+            }
+
+            .panel {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                display: flex;
+                flex-direction: column;
+                transition: width 0.2s ease;
+                overflow: hidden;
+                width: 320px;
+                border: 1px solid #444;
+            }
+
+            #rightPanel {
+                border-left: 1px solid #444;
+                border-right: none;
+            }
+
+            .panel.collapsed {
+                width: 36px;
+            }
+
+            .panel-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px;
+                gap: 8px;
+                background: #212121;
+                border-bottom: 1px solid #444;
+            }
+
+            .panel-header h2 {
+                margin: 0;
+                font-size: 0.95rem;
+                line-height: 1.2;
+            }
+
+            .panel-toggle {
+                width: 32px;
+                height: 32px;
+                border: none;
+                background: #444;
+                color: #fff;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 1rem;
+            }
+
+            .panel-body {
+                padding: 10px;
+                overflow: auto;
+                flex: 1 1 auto;
+            }
+
+            .panel-body label {
+                display: block;
+                margin-bottom: 10px;
+            }
+
+            .panel-body label h4 {
+                margin: 0 0 4px;
+                font-size: 0.85rem;
+            }
+
+            .tile-info-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 0;
+                color: #ddd;
+            }
+
+            .panel-body input[type="number"],
+            .panel-body input[type="text"] {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #666;
+                border-radius: 4px;
+                background: #111;
+                color: #fff;
+            }
+
+            .panel-body hr {
+                border: 1px solid #444;
+                margin: 14px 0;
+            }
+
+            .TeamLegend {
+                display: inline-block;
+                width: 18px;
+                height: 16px;
+                margin-right: 8px;
+                vertical-align: middle;
+                border-radius: 4px;
+            }
+
+            
+
+            .HexLegend {
+                display: inline-block;
+                width: 18px;
+                height: 16px;
+                margin-right: 8px;
+                vertical-align: middle;
+                clip-path: polygon(
+                    25% 0%, 75% 0%,
+                    100% 50%,
+                    75% 100%,
+                    25% 100%,
+                    0% 50%
+                );
+            }
+
+            .BaseLegend {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                margin-right: 6px;
+                vertical-align: middle;
+                background-color: red;
+            }
+
+
+            #gridContainer {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 0;
+                min-height: 0;
+                background: #151515;
+                position: relative;
+                overflow: hidden;
+            }
+
+            #grid {
+                position: relative;
+                width: 800px;
+                height: 600px;
+                transform-origin: 0 0;
+                transition: transform 0.15s ease;
+            }
+
+            #grid img {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            .hex {
+                z-index: 1;
+                position: absolute;
+                width: 40px;
+                height: 35px;
+                clip-path: polygon(
+                    25% 0%, 75% 0%,
+                    100% 50%,
+                    75% 100%,
+                    25% 100%,
+                    0% 50%
+                );
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: bold;
+                color: white;
+                user-select: none;
+                overflow: visible;
+            }
+
+            .hex.type-0 { background: rgba(0, 0, 0, 0.15); }
+            .hex.type-1 { background: rgba(0, 38, 255, 0.5); }
+            .hex.type-2 { background: rgba(233, 0, 194, 0.5); }
+            .hex.type-3 { background: rgba(255, 138, 3, 0.5); }
+            .hex.type-4 { background: rgba(0, 235, 0, 0.5); }
+
+            .team-1 { background: rgba(0, 38, 255, 0.9); }
+            .team-2 { background: rgba(233, 0, 194, 0.9); }
+            .team-3 { background: rgba(255, 138, 3, 0.9); }
+            .team-4 { background: rgba(0, 235, 0, 0.9); }
+
+            .hex::before {
+                content: "";
+                position: absolute;
+                inset: -6px;
+                background: transparent;
+                clip-path: inherit;
+                opacity: 0;
+                z-index: -1;
+            }
+
+            .hex:hover::before {
+                background: white;
+                opacity: 0.55;
+            }
+
+            .hex.selected::before {
+                background: yellow;
+                opacity: 0.2;
+            }
+
+            .panel.collapsed .panel-body {
+                display: none;
+            }
+            .panel.collapsed .panel-header {
+                justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            .panel.collapsed .panel-header h2 {
+                display: none;
+            }
+        </style>
+            <div id="app">
+                <div id="leftPanel" class="panel">
+                    <div class="panel-header">
+                        <h2>Tile Information</h2>
+                        <button class="panel-toggle" onclick="togglePanel('left')" aria-label="Toggle left panel">◀</button>
+                    </div>
+                    <div class="panel-body">
+                        <h3 id="tileTitle"></h3>
+                        <div class="tile-info-row">
+                            <strong>Territory type:</strong>
+                            <span id="tileTypeValue">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="gridContainer">
+                    <div id="grid">
+                        <img id="mapBackground" src="TestMap.jpg" alt="Map background">
+                    </div>
+                </div>
+
+                <div id="rightPanel" class="panel">
+                    <div class="panel-header">
+                        <h2>Map Tools</h2>
+                        <button class="panel-toggle" onclick="togglePanel('right')" aria-label="Toggle right panel">▶</button>
+                    </div>
+                    <div class="panel-body">
+                        <h4>Teams</h4>
+                        <ul>
+                            <li><span class="TeamLegend team-1"></span> Team 1</li>
+                            <li><span class="TeamLegend team-2"></span> Team 2</li>
+                            <li><span class="TeamLegend team-3"></span> Team 3</li>
+                            <li><span class="TeamLegend team-4"></span> Team 4</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        <script>
+            class Tile {
+                constructor(id, type = 0){
+                    this.id = id;
+                    this.type = type;
+                }
+
+                setType(type){
+                    this.type = type;
+                    this.updateVisual();
+                }
+
+                updateVisual() {
+                    if (!this.el) return;
+
+                    this.el.classList.remove("type-0", "type-1", "type-2", "type-3", "type-4");
+                    this.el.classList.add(`type-${this.type}`);
+                }
+            }
+
+            const HEX_WIDTH = 40;
+            const HEX_HEIGHT = 35;
+            const HEX_H_SPACING = HEX_WIDTH * 0.75;
+            const HEX_V_SPACING = HEX_HEIGHT;
+
+            const rows = 17;
+            const cols = 26;
+
+            const tiles = [];
+            let selectedTile = null;
+            const selectedTiles = new Set();
+            const grid = document.getElementById("grid");
+            const gridContainer = document.getElementById("gridContainer");
+
+            let mapScale = 1;
+            let mapOffsetX = 0;
+            let mapOffsetY = 0;
+            let dragStartX = 0;
+            let dragStartY = 0;
+            let isDragging = false;
+            let pointerDown = false;
+            let dragStartOffsetX = 0;
+            let dragStartOffsetY = 0;
+
+            const MIN_SCALE = 0.3;
+            const MAX_SCALE = 3;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const tile = new Tile(`${r}-${c}`);
+                    tiles.push(tile);
+
+                    const el = document.createElement("div");
+                    el.className = "hex type-0";
+
+                    const face = document.createElement("div");
+                    face.className = "hex-face";
+                    face.textContent = "";
+
+                    el.appendChild(face);
+                    el.addEventListener('click', event => {
+                        event.stopPropagation();
+                        selectTile(tile, event);
+                    });
+
+                    tile.el = el;
+
+                    const x = c * HEX_H_SPACING;
+                    const y = r * HEX_V_SPACING + (c % 2 ? HEX_HEIGHT / 2 : 0);
+
+                    el.style.left = `${x}px`;
+                    el.style.top = `${y}px`;
+
+                    tile.updateVisual();
+                    grid.appendChild(el);
+                }
+            }
+
+            window.addEventListener('resize', () => {
+                resetMapPosition();
+                updateGridScale();
+            });
+            resetMapPosition();
+            updateGridScale();
+            loadMapData();
+
+            function clearSelection() {
+                selectedTiles.forEach(t => t.el.classList.remove("selected"));
+                selectedTiles.clear();
+            }
+
+            function addSelection(tile) {
+                selectedTiles.add(tile);
+                tile.el.classList.add("selected");
+            }
+
+            function removeSelection(tile) {
+                selectedTiles.delete(tile);
+                tile.el.classList.remove("selected");
+                if (selectedTile === tile) {
+                    selectedTile = selectedTiles.values().next().value || null;
+                }
+            }
+
+            function selectTile(tile, event) {
+                const shiftKey = event && event.shiftKey;
+                if (shiftKey) {
+                    if (selectedTiles.has(tile)) {
+                        removeSelection(tile);
+                    } else {
+                        addSelection(tile);
+                        selectedTile = tile;
+                    }
+                } else {
+                    clearSelection();
+                    addSelection(tile);
+                    selectedTile = tile;
+                }
+
+                if (selectedTiles.size === 0) {
+                    selectedTile = null;
+                }
+
+                console.log("Selected tiles", [...selectedTiles].map(t => t.id));
+                renderPanel(selectedTile);
+            }
+
+            function togglePanel(side) {
+                const panel = document.getElementById(side === 'left' ? 'leftPanel' : 'rightPanel');
+                panel.classList.toggle('collapsed');
+                const button = panel.querySelector('.panel-toggle');
+                if (side === 'left') {
+                    button.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+                } else {
+                    button.textContent = panel.classList.contains('collapsed') ? '◀' : '▶';
+                }
+                updateGridScale();
+            }
+
+            function updateGridScale() {
+                if (!gridContainer) return;
+                const containerScaleX = gridContainer.clientWidth / 800;
+                const containerScaleY = gridContainer.clientHeight / 600;
+                const baseScale = Math.min(containerScaleX, containerScaleY);
+                const appliedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, mapScale * baseScale));
+                grid.style.transform = `translate(${mapOffsetX}px, ${mapOffsetY}px) scale(${appliedScale})`;
+            }
+
+            function resetMapPosition() {
+                if (!gridContainer) return;
+                const rect = gridContainer.getBoundingClientRect();
+                const baseScale = Math.min(rect.width / 800, rect.height / 600);
+                const appliedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, mapScale * baseScale));
+                mapOffsetX = (rect.width - 800 * appliedScale) / 2;
+                mapOffsetY = (rect.height - 600 * appliedScale) / 2;
+            }
+
+            function onWheel(event) {
+                event.preventDefault();
+                const rect = gridContainer.getBoundingClientRect();
+                const cursorX = event.clientX - rect.left;
+                const cursorY = event.clientY - rect.top;
+                const delta = event.deltaY < 0 ? 1.1 : 0.9;
+                const nextScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, mapScale * delta));
+                const prevScale = mapScale;
+                mapOffsetX += (1 - nextScale / prevScale) * (cursorX - mapOffsetX);
+                mapOffsetY += (1 - nextScale / prevScale) * (cursorY - mapOffsetY);
+                mapScale = nextScale;
+                updateGridScale();
+            }
+
+            function onPointerDown(event) {
+                if (event.button !== 0) return;
+                pointerDown = true;
+                dragStartX = event.clientX;
+                dragStartY = event.clientY;
+                dragStartOffsetX = mapOffsetX;
+                dragStartOffsetY = mapOffsetY;
+                isDragging = false;
+            }
+
+            function onPointerMove(event) {
+                if (!pointerDown) return;
+                const deltaX = event.clientX - dragStartX;
+                const deltaY = event.clientY - dragStartY;
+                if (!isDragging && Math.hypot(deltaX, deltaY) > 4) {
+                    isDragging = true;
+                }
+                if (isDragging) {
+                    mapOffsetX = dragStartOffsetX + deltaX;
+                    mapOffsetY = dragStartOffsetY + deltaY;
+                    updateGridScale();
+                }
+            }
+
+            function onPointerUp(event) {
+                pointerDown = false;
+                isDragging = false;
+            }
+
+            gridContainer.addEventListener('wheel', onWheel, { passive: false });
+            gridContainer.addEventListener('pointerdown', onPointerDown);
+            gridContainer.addEventListener('pointermove', onPointerMove);
+            gridContainer.addEventListener('pointerup', onPointerUp);
+            gridContainer.addEventListener('pointercancel', onPointerUp);
+
+            function renderPanel(tile) {
+                const titleEl = document.getElementById("tileTitle");
+                const typeValueEl = document.getElementById("tileTypeValue");
+                if (!tile) {
+                    titleEl.textContent = "No tile selected";
+                    typeValueEl.textContent = "—";
+                    return;
+                }
+
+                const name = selectedTiles.size > 1
+                    ? `Tiles (${selectedTiles.size})`
+                    : `Tile ${tile.id}`;
+                titleEl.textContent = name;
+                typeValueEl.textContent = tile.type;
+            }
+
+            function exportMapData() {
+                const data = {
+                    rows,
+                    cols,
+                    tiles: tiles.map(t => ({
+                        id: t.id,
+                        type: t.type
+                    }))
+                };
+
+                const blob = new Blob(
+                    [JSON.stringify(data, null, 2)],
+                    { type: "application/json" }
+                );
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "campaign-map.json";
+                link.click();
+            }
+
+            function loadMapData() {
+                fetch('campaign-map.json')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Unable to load campaign-map.json (${response.status})`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data || !Array.isArray(data.tiles)) {
+                            throw new Error('Invalid map data format');
+                        }
+                        data.tiles.forEach((tileData, i) => {
+                            const t = tiles[i];
+                            if (t && typeof tileData.type === 'number') {
+                                t.setType(tileData.type);
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Failed to load campaign-map.json:', error);
+                    });
+            }
+
+        </script>
+    </body>
+</html>

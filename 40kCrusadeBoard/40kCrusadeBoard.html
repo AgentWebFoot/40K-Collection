@@ -88,6 +88,17 @@
                 font-size: 0.85rem;
             }
 
+            #rightPanel h4 {
+                margin: 0 0 6px;
+                font-size: 0.95rem;
+            }
+
+            #rightPanel ul {
+                margin-top: 0;
+                margin-bottom: 12px;
+                padding-left: 20px;
+            }
+
             .panel-body input[type="number"],
             .panel-body input[type="text"] {
                 width: 100%;
@@ -253,6 +264,11 @@
                         </label>
 
                         <label>
+                            <h4>Control Value:</h4>
+                            <input id="tileControlValue" type="number" min="0" max="10" style="width: 100px;">
+                        </label>
+
+                        <label>
                             <h4>Building:</h4>
                             <select id="tileBuilding">
                                 <option value="">None</option>
@@ -282,19 +298,19 @@
                                 <option value="Ze">Embassy (Ze)</option>
                                 <option value="Zh">Hive (Zh)</option> 
                                 <option value="Zt">Towers of Gork and Mork (Zt)</option>
-                                <option value="At">Torture Plex (At)</option>
                                 <option value="Ab">Bone Spire (Ab)</option>
+                                <option value="At">Torture Plex (At)</option>
                                 <option value="Aw">Webway (Aw)</option>
                                 <option value="T">Tomb (T)</option>
                             </select>
                         </label>
-
                         <button onclick="applyChanges()">Apply</button>
+                        <hr>
 
                         <div>
+                            <button onclick="exportMapData()">Export Map</button>
+                            <input type="file" onchange="importMapData(this.files[0])">
                             <label>
-                            <span>Show tile text</span>
-                            <input type="checkbox" id="showTileText" checked onchange="toggleTileText()">
                         </label>
                         </div>
                         
@@ -323,6 +339,7 @@
                         </ul>
 
                         <hr>
+
                         <h4>Buildings</h4>
                         <ul>
                             <li><strong>^</strong> - Mountain</li>
@@ -351,24 +368,27 @@
                             <li><strong>Ze</strong> - Embassy</li>
                             <li><strong>Zh</strong> - Hive</li>
                             <li><strong>Zt</strong> - Towers of Gork and Mork</li>
-                            <li><strong>At</strong> - Torture Plex</li> 
                             <li><strong>Ab</strong> - Bone Spire</li>
+                            <li><strong>At</strong> - Torture Plex</li> 
                             <li><strong>Aw</strong> - Webway</li>
                             <li><strong>T</strong> - Tomb</li>
                         </ul>
 
-                        <button onclick="exportMapData()">Export Map</button>
                         <hr>
-                        <input type="file" onchange="importMapData(this.files[0])">
+
+                        <div class="panel-body">
+                         <span>Show tile text</span>
+                            <input type="checkbox" id="showTileText" checked onchange="toggleTileText()">
                     </div>
                 </div>
             </div>
         <script>
             class Tile {
-                constructor(id, type = 0, building = ""){
+                constructor(id, type = 0, building = "", controlValue = 0){
                     this.id = id;
                     this.type = type;
                     this.building = building;
+                    this.controlValue = controlValue;
                 }
 
                 setType(type){
@@ -381,6 +401,11 @@
                     this.updateVisual();
                 }
 
+                setControlValue(controlValue){
+                    this.controlValue = controlValue;
+                    this.updateVisual();
+                }
+
                 updateVisual() {
                     if (!this.el) return;
 
@@ -389,7 +414,19 @@
 
                     const face = this.el.querySelector('.hex-face');
                     if (face) {
-                        face.innerHTML = showTileText ? (this.building ? `${this.building}<br>${this.id}` : this.id) : '';
+                        let displayText = '';
+                        if (this.building) {
+                            displayText += this.building;
+                        }
+                        if (showTileText) {
+                            const controlDisplay = (this.controlValue > 0 && this.controlValue < 10) ? this.controlValue : '';
+                            if (displayText && controlDisplay) {
+                                displayText += '<br>' + controlDisplay;
+                            } else if (controlDisplay) {
+                                displayText = controlDisplay;
+                            }
+                        }
+                        face.innerHTML = displayText;
                     }
                 }
             }
@@ -591,6 +628,7 @@
                     titleEl.textContent = "No tile selected";
                     document.getElementById("tileType").value = "";
                     document.getElementById("tileBuilding").value = "";
+                    document.getElementById("tileControlValue").value = "";
                     return;
                 }
 
@@ -603,6 +641,8 @@
                     tile.type;
                 document.getElementById("tileBuilding").value =
                     tile.building;
+                document.getElementById("tileControlValue").value =
+                    tile.controlValue;
             }
             
             function applyChanges() {
@@ -610,10 +650,12 @@
 
                 const newType = Number(document.getElementById("tileType").value);
                 const newBuilding = document.getElementById("tileBuilding").value;
+                const newControlValue = Number(document.getElementById("tileControlValue").value);
 
                 selectedTiles.forEach(tile => {
                     tile.setType(newType);
                     tile.setBuilding(newBuilding);
+                    tile.setControlValue(newControlValue);
                 });
 
                 renderPanel(selectedTile || selectedTiles.values().next().value);
@@ -626,7 +668,8 @@
                     tiles: tiles.map(t => ({
                         id: t.id,
                         type: t.type,
-                        building: t.building
+                        building: t.building,
+                        controlValue: t.controlValue
                     }))
                 };
 
@@ -650,6 +693,7 @@
                         const t = tiles[i];
                         t.setType(tileData.type);
                         t.setBuilding(tileData.building || "");
+                        t.setControlValue(tileData.controlValue || 0);
                     });
                 };
                 reader.readAsText(file);

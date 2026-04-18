@@ -184,11 +184,16 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 12px;
+                font-size: 4px;
                 font-weight: bold;
                 color: white;
                 user-select: none;
                 overflow: visible;
+            }
+
+            .hex-face {
+                text-align: center;
+                line-height: 1.2;
             }
 
             .hex.type-0 { background: rgba(0, 0, 0, 0.15); }
@@ -247,7 +252,42 @@
                             <input id="tileType" type="number" min="0" max="4" style="width: 100px;">
                         </label>
 
+                        <label>
+                            <h4>Building:</h4>
+                            <select id="tileBuilding">
+                                <option value="">None</option>
+                                <option value="Te">Trading Encampment (Te)</option>
+                                <option value="If">Mechanicus Forge (If)</option>
+                                <option value="B">Bastion (B)</option>
+                                <option value="Bo">Orbital Bastion (Bo)</option>
+                                <option value="Me">Medical Stash (Me)</option>
+                                <option value="Im">Ministorum Church (Im)</option>
+                                <option value="Iw">Watch Fortress (Iw)</option>
+                                <option value="At">Torture Plex (At)</option>
+                                <option value="Zc">Cult Base (Zc)</option>
+                                <option value="Cd">Altar to the Dark God (Cd)</option>
+                                <option value="Zh">Hive (Zh)</option>
+                                <option value="Ii">Inquisitorial Fortress (Ii)</option>
+                                <option value="Zt">Towers of Gork and Mork (Zt)</option>
+                                <option value="Ab">Bone Spire (Ab)</option>
+                                <option value="P">Floating Platform (P)</option>
+                                <option value="Ig">Governing Palace (Ig)</option>
+                                <option value="Ii">Inquisitorial Fortress (Ii)</option>
+                                <option value="Ic">Citadel (Ic)</option>
+                                <option value="T">Tomb (T)</option>
+                                <option value="Ca">Arena of Bloodshed (Ca)</option>  
+                            </select>
+                        </label>
+
                         <button onclick="applyChanges()">Apply</button>
+
+                        <div>
+                            <label>
+                            <span>Show tile text</span>
+                            <input type="checkbox" id="showTileText" checked onchange="toggleTileText()">
+                        </label>
+                        </div>
+                        
                     </div>
                 </div>
 
@@ -270,6 +310,31 @@
                             <li><span class="TeamLegend team-3"></span> Team 3</li>
                             <li><span class="TeamLegend team-4"></span> Team 4</li>
                         </ul>
+
+                        <hr>
+                        <h4>Buildings</h4>
+                        <ul>
+                            <li><strong>Te</strong> - Trading Encampment</li>
+                            <li><strong>If</strong> - Mechanicus Forge</li>
+                            <li><strong>B</strong> - Bastion</li>
+                            <li><strong>Bo</strong> - Orbital Bastion</li>
+                            <li><strong>Me</strong> - Medical Stash</li>
+                            <li><strong>Im</strong> - Ministorum Church</li>
+                            <li><strong>Iw</strong> - Watch Fortress</li>
+                            <li><strong>At</strong> - Torture Plex</li>
+                            <li><strong>Zc</strong> - Cult Base</li>
+                            <li><strong>Cd</strong> - Altar to the Dark God</li>
+                            <li><strong>Zh</strong> - Hive</li>
+                            <li><strong>Ii</strong> - Inquisitorial Fortress</li>
+                            <li><strong>Zt</strong> - Towers of Gork and Mork</li>
+                            <li><strong>Ab</strong> - Bone Spire</li>
+                            <li><strong>P</strong> - Floating Platform</li>
+                            <li><strong>Ig</strong> - Governing Palace</li>
+                            <li><strong>Ic</strong> - Citadel</li>
+                            <li><strong>T</strong> - Tomb</li>
+                            <li><strong>Ca</strong> - Arena of Bloodshed</li>
+                        </ul>
+
                         <button onclick="exportMapData()">Export Map</button>
                         <hr>
                         <input type="file" onchange="importMapData(this.files[0])">
@@ -278,13 +343,19 @@
             </div>
         <script>
             class Tile {
-                constructor(id, type = 0){
+                constructor(id, type = 0, building = ""){
                     this.id = id;
                     this.type = type;
+                    this.building = building;
                 }
 
                 setType(type){
                     this.type = type;
+                    this.updateVisual();
+                }
+
+                setBuilding(building){
+                    this.building = building;
                     this.updateVisual();
                 }
 
@@ -293,6 +364,11 @@
 
                     this.el.classList.remove("type-0", "type-1", "type-2", "type-3", "type-4");
                     this.el.classList.add(`type-${this.type}`);
+
+                    const face = this.el.querySelector('.hex-face');
+                    if (face) {
+                        face.innerHTML = showTileText ? (this.building ? `${this.building}<br>${this.id}` : this.id) : '';
+                    }
                 }
             }
 
@@ -307,6 +383,7 @@
             const tiles = [];
             let selectedTile = null;
             const selectedTiles = new Set();
+            let showTileText = true;
             const grid = document.getElementById("grid");
             const gridContainer = document.getElementById("gridContainer");
 
@@ -333,7 +410,7 @@
 
                     const face = document.createElement("div");
                     face.className = "hex-face";
-                    face.textContent = "";
+                    face.textContent = tile.id;
 
                     el.appendChild(face);
                     el.addEventListener('click', event => {
@@ -414,6 +491,11 @@
                 updateGridScale();
             }
 
+            function toggleTileText() {
+                showTileText = document.getElementById('showTileText').checked;
+                tiles.forEach(tile => tile.updateVisual());
+            }
+
             function updateGridScale() {
                 if (!gridContainer) return;
                 const containerScaleX = gridContainer.clientWidth / 800;
@@ -486,6 +568,7 @@
                 if (!tile) {
                     titleEl.textContent = "No tile selected";
                     document.getElementById("tileType").value = "";
+                    document.getElementById("tileBuilding").value = "";
                     return;
                 }
 
@@ -496,15 +579,19 @@
 
                 document.getElementById("tileType").value =
                     tile.type;
+                document.getElementById("tileBuilding").value =
+                    tile.building;
             }
             
             function applyChanges() {
                 if (selectedTiles.size === 0) return;
 
                 const newType = Number(document.getElementById("tileType").value);
+                const newBuilding = document.getElementById("tileBuilding").value;
 
                 selectedTiles.forEach(tile => {
                     tile.setType(newType);
+                    tile.setBuilding(newBuilding);
                 });
 
                 renderPanel(selectedTile || selectedTiles.values().next().value);
@@ -516,7 +603,8 @@
                     cols,
                     tiles: tiles.map(t => ({
                         id: t.id,
-                        type: t.type
+                        type: t.type,
+                        building: t.building
                     }))
                 };
 
@@ -539,6 +627,7 @@
                     data.tiles.forEach((tileData, i) => {
                         const t = tiles[i];
                         t.setType(tileData.type);
+                        t.setBuilding(tileData.building || "");
                     });
                 };
                 reader.readAsText(file);

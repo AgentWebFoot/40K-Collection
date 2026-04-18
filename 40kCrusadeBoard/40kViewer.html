@@ -83,7 +83,8 @@
                 margin-bottom: 10px;
             }
 
-            .panel-body label h4 {
+            .panel-body label h4,
+            .panel-body > h4 {
                 margin: 0 0 4px;
                 font-size: 0.85rem;
             }
@@ -104,6 +105,12 @@
                 border-radius: 4px;
                 background: #111;
                 color: #fff;
+            }
+
+            .panel-body ul {
+                margin-top: 0;
+                margin-bottom: 12px;
+                padding-left: 20px;
             }
 
             .panel-body hr {
@@ -192,7 +199,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 12px;
+                font-size: 4px;
                 font-weight: bold;
                 color: white;
                 user-select: none;
@@ -254,6 +261,14 @@
                             <strong>Territory type:</strong>
                             <span id="tileTypeValue">—</span>
                         </div>
+                        <div class="tile-info-row">
+                            <strong>Building:</strong>
+                            <span id="tileBuildingValue">—</span>
+                        </div>
+                        <div class="tile-info-row">
+                            <strong>Control value:</strong>
+                            <span id="tileControlValue">—</span>
+                        </div>
                     </div>
                 </div>
 
@@ -276,18 +291,70 @@
                             <li><span class="TeamLegend team-3"></span> Team 3</li>
                             <li><span class="TeamLegend team-4"></span> Team 4</li>
                         </ul>
+
+                        <hr>
+
+                        <h4>Buildings</h4>
+                        <ul>
+                            <li><strong>^</strong> - Mountain</li>
+                            <li><strong>B</strong> - Bastion</li>
+                            <li><strong>Bo</strong> - Orbital Bastion</li>
+                            <li><strong>D</strong> - Discovered Tile</li>
+                            <li><strong>F</strong> - Forest</li>
+                            <li><strong>L</strong> - Launch Site</li>
+                            <li><strong>Me</strong> - Medical Stash</li>
+                            <li><strong>P</strong> - Floating Platform</li>
+                            <li><strong>Pc</strong> - Population Center</li>
+                            <li><strong>Pr</strong> - Promithium Refinery</li>
+                            <li><strong>R</strong> - Ruins</li>
+                            <li><strong>Rd</strong> - Resource Deposit</li>
+                            <li><strong>S</strong> - Swamp</li>
+                            <li><strong>Te</strong> - Trading Encampment</li>
+                            <li><strong>Ic</strong> - Citadel</li>
+                            <li><strong>If</strong> - Mechanicus Forge</li>
+                            <li><strong>Ig</strong> - Governing Palace</li>
+                            <li><strong>Ii</strong> - Inquisitorial Fortress</li>
+                            <li><strong>Im</strong> - Ministorum Church</li>
+                            <li><strong>Iw</strong> - Watch Fortress</li>
+                            <li><strong>Ca</strong> - Arena of Bloodshed</li>
+                            <li><strong>Cd</strong> - Altar to the Dark God</li>
+                            <li><strong>Zc</strong> - Cult Base</li>
+                            <li><strong>Ze</strong> - Embassy</li>
+                            <li><strong>Zh</strong> - Hive</li>
+                            <li><strong>Zt</strong> - Towers of Gork and Mork</li>
+                            <li><strong>Ab</strong> - Bone Spire</li>
+                            <li><strong>At</strong> - Torture Plex</li> 
+                            <li><strong>Aw</strong> - Webway</li>
+                            <li><strong>T</strong> - Tomb</li>
+                        </ul>
+
+                        <hr>
+                        <span>Show tile text</span>
+                        <input type="checkbox" id="showTileText" checked onchange="toggleTileText()">
                     </div>
                 </div>
             </div>
         <script>
             class Tile {
-                constructor(id, type = 0){
+                constructor(id, type = 0, building = "", controlValue = 0){
                     this.id = id;
                     this.type = type;
+                    this.building = building;
+                    this.controlValue = controlValue;
                 }
 
                 setType(type){
                     this.type = type;
+                    this.updateVisual();
+                }
+
+                setBuilding(building){
+                    this.building = building;
+                    this.updateVisual();
+                }
+
+                setControlValue(controlValue){
+                    this.controlValue = controlValue;
                     this.updateVisual();
                 }
 
@@ -296,6 +363,25 @@
 
                     this.el.classList.remove("type-0", "type-1", "type-2", "type-3", "type-4");
                     this.el.classList.add(`type-${this.type}`);
+
+                    const face = this.el.querySelector('.hex-face');
+                    if (face) {
+                        let displayText = '';
+                        if (showTileText) {
+                            if (this.building) {
+                                displayText = this.building;
+                            }
+                            const controlDisplay = (this.controlValue > 0 && this.controlValue < 10)
+                                ? this.controlValue
+                                : '';
+                            if (displayText && controlDisplay) {
+                                displayText += '<br>' + controlDisplay;
+                            } else if (controlDisplay) {
+                                displayText = controlDisplay;
+                            }
+                        }
+                        face.innerHTML = displayText;
+                    }
                 }
             }
 
@@ -312,6 +398,7 @@
             const selectedTiles = new Set();
             const grid = document.getElementById("grid");
             const gridContainer = document.getElementById("gridContainer");
+            let showTileText = true;
 
             let mapScale = 1;
             let mapOffsetX = 0;
@@ -488,9 +575,13 @@
             function renderPanel(tile) {
                 const titleEl = document.getElementById("tileTitle");
                 const typeValueEl = document.getElementById("tileTypeValue");
+                const buildingValueEl = document.getElementById("tileBuildingValue");
+                const controlValueEl = document.getElementById("tileControlValue");
                 if (!tile) {
                     titleEl.textContent = "No tile selected";
                     typeValueEl.textContent = "—";
+                    buildingValueEl.textContent = "—";
+                    controlValueEl.textContent = "—";
                     return;
                 }
 
@@ -499,6 +590,8 @@
                     : `Tile ${tile.id}`;
                 titleEl.textContent = name;
                 typeValueEl.textContent = tile.type;
+                buildingValueEl.textContent = tile.building || "—";
+                controlValueEl.textContent = tile.controlValue;
             }
 
             function exportMapData() {
@@ -507,7 +600,9 @@
                     cols,
                     tiles: tiles.map(t => ({
                         id: t.id,
-                        type: t.type
+                        type: t.type,
+                        building: t.building,
+                        controlValue: t.controlValue
                     }))
                 };
 
@@ -536,14 +631,26 @@
                         }
                         data.tiles.forEach((tileData, i) => {
                             const t = tiles[i];
-                            if (t && typeof tileData.type === 'number') {
+                            if (!t) return;
+                            if (typeof tileData.type === 'number') {
                                 t.setType(tileData.type);
+                            }
+                            if (typeof tileData.building === 'string') {
+                                t.setBuilding(tileData.building);
+                            }
+                            if (typeof tileData.controlValue === 'number') {
+                                t.setControlValue(tileData.controlValue);
                             }
                         });
                     })
                     .catch(error => {
                         console.error('Failed to load campaign-map.json:', error);
                     });
+            }
+
+            function toggleTileText() {
+                showTileText = document.getElementById('showTileText').checked;
+                tiles.forEach(tile => tile.updateVisual());
             }
 
         </script>

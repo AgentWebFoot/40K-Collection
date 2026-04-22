@@ -125,7 +125,7 @@
       "locationNum": 24,
       "locationExtra": "",
       "conditionNum": 11,
-      "killTeam": 8,
+      "killTeam": 0,
       "base": 0
     },
     {
@@ -143,7 +143,7 @@
       "locationNum": 33,
       "locationExtra": "",
       "conditionNum": 36,
-      "killTeam": 0,
+      "killTeam": 8,
       "base": 6
     },
     {
@@ -249,9 +249,9 @@
       "id": "4-3",
       "type": 2,
       "locationNum": 31,
-      "locationExtra": "",
+      "locationExtra": "ALSO CONTAINS: Wrecka Krew – AgentWebFoot",
       "conditionNum": 11,
-      "killTeam": 0,
+      "killTeam": 5,
       "base": 5
     },
     {
@@ -312,9 +312,9 @@
       "id": "5-4",
       "type": 2,
       "locationNum": 34,
-      "locationExtra": "USED",
+      "locationExtra": "",
       "conditionNum": 23,
-      "killTeam": 5,
+      "killTeam": 0,
       "base": 0
     },
     {
@@ -377,7 +377,7 @@
       "locationNum": 1,
       "locationExtra": "",
       "conditionNum": 1,
-      "killTeam": 1,
+      "killTeam": 0,
       "base": 1
     },
     {

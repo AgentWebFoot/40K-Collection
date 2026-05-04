@@ -2,640 +2,1798 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Grid: Points / Circles + Erase Masks + Objectives + Measure</title>
 <style>
-  :root{
-    --bg:#0f1220; --panel:#121528; --text:#e7e9ee;
-	--canvas-bg:#b8b9b3;
-    --grid:#acaca6; --grid-bold:#2d2c26;
-    --green:#455a4f; --green-fill: rgba(69,90,79,1);
-    --red:#7c322a;   --red-fill:   rgba(124,50,42,1);
-    --objective:#144062;
-    --measure:#1d1916;   /* measurement color */
+  :root {
+    --bg: #0f1220;
+    --panel: #121528;
+    --text: #e7e9ee;
+    --canvas-bg: #b8b9b3;
+    --grid: #acaca6;
+    --grid-bold: #2d2c26;
+    --green: #455a4f;
+    --green-fill: rgba(69, 90, 79, 1);
+    --red: #7c322a;
+    --red-fill: rgba(124, 50, 42, 1);
+    --objective: #144062;
+    --measure: #1d1916;
   }
 
-  body{margin:0;background:var(--bg);color:var(--text);
-       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-       min-height:100vh; display:grid; place-items:center; padding:16px;}
-  .wrap{width:min(95vw,1100px); display:grid; gap:12px;}
-  canvas{width:100%; height:auto; background:var(--canvas-bg); border-radius:12px;
-         box-shadow:0 10px 30px rgba(0,0,0,.35); cursor:crosshair;}
-  .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;
-           background:var(--panel); padding:10px; border-radius:10px;}
-  .toolbar .sp{flex:1}
-  .btn{padding:8px 12px; border-radius:10px; border:1px solid #2a2e4a;
-       background:#191e36; color:var(--text); cursor:pointer;}
-  .btn[aria-pressed="true"]{outline:2px solid #8aa0ff;}
-  .swatch{width:14px; height:14px; border-radius:50%; display:inline-block; margin-right:8px; vertical-align:-2px;}
-  .swatch.green{background:var(--green);}
-  .swatch.red{background:var(--red);}
-  .swatch.erase{background: conic-gradient(from 45deg, #ff4d4d 0 25%, #222 0 50%, #33d17a 0 75%, #222 0);}
-  .swatch.objective{background: var(--objective);}
-  .swatch.measure{background: var(--measure);}
-  .hint{opacity:.85}
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+
+  .wrap {
+    width: min(95vw, 1100px);
+    display: grid;
+    gap: 12px;
+  }
+
+  .name-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border-radius: 10px;
+  }
+
+  .name-input {
+    flex: 1 1 280px;
+    min-width: 220px;
+    padding: 10px 12px;
+    border: 1px solid #2a2e4a;
+    border-radius: 10px;
+    background: #191e36;
+    color: var(--text);
+    font: inherit;
+  }
+
+  .name-input::placeholder {
+    color: rgba(231, 233, 238, 0.55);
+  }
+
+  canvas {
+    width: 100%;
+    height: auto;
+    background: var(--canvas-bg);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    cursor: crosshair;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: var(--panel);
+    border-radius: 10px;
+  }
+
+  .toolbar .sp {
+    flex: 1;
+  }
+
+  .toolbar-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toolbar-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .btn {
+    padding: 8px 12px;
+    border: 1px solid #2a2e4a;
+    border-radius: 10px;
+    background: #191e36;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .btn[aria-pressed="true"] {
+    outline: 2px solid #8aa0ff;
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border-radius: 50%;
+    vertical-align: -2px;
+  }
+
+  .swatch.green { background: var(--green); }
+  .swatch.red { background: var(--red); }
+  .swatch.objective { background: var(--objective); }
+  .swatch.measure { background: var(--measure); }
+  .swatch.erase {
+    background: conic-gradient(from 45deg, #ff4d4d 0 25%, #222 0 50%, #33d17a 0 75%, #222 0);
+  }
+
+  .hint {
+    opacity: 0.85;
+  }
+
+  .status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .footer-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border-radius: 10px;
+  }
+
+  .footer-note {
+    font-size: 13px;
+    opacity: 0.8;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 1px solid #2a2e4a;
+    border-radius: 999px;
+    background: rgba(25, 30, 54, 0.85);
+  }
+
+  .chip strong {
+    margin-right: 6px;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="name-bar">
+    <span class="toolbar-label">Map Name</span>
+    <input id="mapName" class="name-input" type="text" value="40k-map" placeholder="Enter map name" />
+  </div>
+
   <canvas id="grid"></canvas>
 
   <div class="toolbar">
-    <!-- Draw tools -->
-    <button id="pickGreen" class="btn" aria-pressed="true"><span class="swatch green"></span>Green</button>
-    <button id="pickRed"   class="btn" aria-pressed="false"><span class="swatch red"></span>Red</button>
-    <button id="pickObjective" class="btn" aria-pressed="false"><span class="swatch objective"></span>Objective</button>
+    <div class="toolbar-group">
+      <span class="toolbar-label">Tool</span>
+      <button id="pickGreen" class="btn" aria-pressed="true"><span class="swatch green"></span>Green Area</button>
+      <button id="pickRed" class="btn" aria-pressed="false"><span class="swatch red"></span>Red Area</button>
+      <button id="pickObjective" class="btn" aria-pressed="false"><span class="swatch objective"></span>Objective</button>
+      <button id="pickErase" class="btn" aria-pressed="false"><span class="swatch erase"></span>Erase Area</button>
+      <button id="pickMeasure" class="btn" aria-pressed="false"><span class="swatch measure"></span>Measure</button>
+    </div>
 
-    <!-- Erase / Measure tools -->
-    <button id="pickErase" class="btn" aria-pressed="false"><span class="swatch erase"></span>Erase</button>
-    <button id="pickMeasure" class="btn" aria-pressed="false"><span class="swatch measure"></span>Measure</button>
-
-    <!-- Modes (points/circle; Measure & Objective ignore modes) -->
     <span class="sp"></span>
-    <button id="modePoints" class="btn" aria-pressed="true">Points</button>
-    <button id="modeCircle" class="btn" aria-pressed="false">Circle</button>
 
-    <!-- Actions -->
+    <div class="toolbar-group">
+      <span class="toolbar-label">Shape</span>
+      <button id="modePoints" class="btn" aria-pressed="true">Polygon</button>
+      <button id="modeCircle" class="btn" aria-pressed="false">Circle</button>
+      <button id="modeRectangle" class="btn" aria-pressed="false">Rectangle</button>
+    </div>
+
     <span class="sp"></span>
-    <button id="finishMask" class="btn" title="Finish polygon (Enter)">Finish Mask</button>
+
+    <div class="toolbar-group">
+      <span class="toolbar-label">Draft</span>
+      <button id="finishMask" class="btn" title="Finish current shape (Enter)">Finish Shape</button>
+      <button id="cancelDraft" class="btn" title="Cancel current draft (Escape)">Cancel Draft</button>
+    </div>
+
+    <div class="toolbar-group">
+      <span class="toolbar-label">Actions</span>
+    <button id="toggleMeasureErase" class="btn" aria-pressed="false">Erase Measure</button>
+    <button id="importMap" class="btn">Import Map</button>
+    <button id="exportMap" class="btn">Export Map</button>
+    <button id="saveImage" class="btn">Save Image</button>
     <button id="undo" class="btn">Undo (current)</button>
     <button id="clear" class="btn">Clear (current)</button>
+    </div>
+  </div>
+  <input id="importMapInput" type="file" accept=".json,application/json" hidden />
+
+  <div class="status-row">
+    <span id="draftStatus" class="chip"><strong>Draft:</strong> Ready to start</span>
     <span id="status" class="hint"></span>
   </div>
 
-  <div class="hint" id="help"></div>
+  <div id="help" class="hint"></div>
+
+  <div class="footer-bar">
+    <div class="toolbar-group">
+      <span class="toolbar-label">Board Size</span>
+      <button id="board44x30" class="btn" aria-pressed="false">44&quot; x 30&quot;</button>
+      <button id="board44x60" class="btn" aria-pressed="true">44&quot; x 60&quot;</button>
+      <button id="board44x90" class="btn" aria-pressed="false">44&quot; x 90&quot;</button>
+    </div>
+    <div id="boardSizeNote" class="footer-note">Board uses a 1&quot; grid and resizes the map to match the selected play area.</div>
+  </div>
 </div>
 
 <script>
-  // ======= GRID SIZE =======
-  const ROWS = 14, COLS = 24, CELL = 30, MARGIN = 18;
-  // =========================
+  const CELL = 30;
+  const MARGIN = 18;
+  const BOARD_PRESETS = {
+    '44x30': { rows: 30, cols: 44, label: '44" x 30"' },
+    '44x60': { rows: 44, cols: 60, label: '44" x 60"' },
+    '44x90': { rows: 44, cols: 90, label: '44" x 90"' }
+  };
+
+  const TOOL_IDS = ['green', 'red', 'objective', 'erase', 'measure'];
+  const MODE_IDS = ['points', 'circle', 'rectangle'];
+  const BOARD_IDS = ['44x30', '44x60', '44x90'];
 
   const COLORS = {
-    green: { point: css('--green','#33d17a'), stroke: css('--green','#33d17a'), fill: css('--green-fill','rgba(51,209,122,.18)') },
-    red:   { point: css('--red','#ff4d4d'),   stroke: css('--red','#ff4d4d'),   fill: css('--red-fill','rgba(255,77,77,.18)') }
+    green: {
+      stroke: css('--green', '#33d17a'),
+      fill: css('--green-fill', 'rgba(51, 209, 122, 0.18)')
+    },
+    red: {
+      stroke: css('--red', '#ff4d4d'),
+      fill: css('--red-fill', 'rgba(255, 77, 77, 0.18)')
+    }
   };
-  const GRID_COLOR = css('--grid','#3b3f55');
-  const GRID_BOLD  = css('--grid-bold','#60657d');
+
+  const GRID_COLOR = css('--grid', '#3b3f55');
+  const GRID_BOLD = css('--grid-bold', '#60657d');
+  const OBJECTIVE_COLOR = css('--objective', '#197a4b');
+  const MEASURE_COLOR = css('--measure', '#ffd36b');
 
   const canvas = document.getElementById('grid');
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('status');
+  const draftStatusEl = document.getElementById('draftStatus');
   const helpEl = document.getElementById('help');
+  const mapNameInput = document.getElementById('mapName');
 
-  // Offscreen layer for FILLS (lets us punch erase holes cleanly)
-  let off = document.createElement('canvas');
-  let offCtx = off.getContext('2d');
+  const off = document.createElement('canvas');
+  const offCtx = off.getContext('2d');
 
-  // Tool & mode: 'green'|'red'|'objective'|'erase'|'measure'  and  'points'|'circle'
-  let currentTool = 'green';
-  let currentMode = 'points';
-
-  // Data per color
-  const state = {
-    green: { arr: [], set: new Set(), circles: [] }, // arr = polygon pts; circles = {r,c,radiusPx}[]
-    red:   { arr: [], set: new Set(), circles: [] }
+  const toolButtons = {
+    green: document.getElementById('pickGreen'),
+    red: document.getElementById('pickRed'),
+    objective: document.getElementById('pickObjective'),
+    erase: document.getElementById('pickErase'),
+    measure: document.getElementById('pickMeasure')
   };
 
-  // Objective markers (bigger, dark-green dots)
+  const modeButtons = {
+    points: document.getElementById('modePoints'),
+    circle: document.getElementById('modeCircle'),
+    rectangle: document.getElementById('modeRectangle')
+  };
+
+  const finishMaskBtn = document.getElementById('finishMask');
+  const cancelDraftBtn = document.getElementById('cancelDraft');
+  const toggleMeasureEraseBtn = document.getElementById('toggleMeasureErase');
+  const importMapBtn = document.getElementById('importMap');
+  const exportMapBtn = document.getElementById('exportMap');
+  const saveImageBtn = document.getElementById('saveImage');
+  const importMapInput = document.getElementById('importMapInput');
+  const undoBtn = document.getElementById('undo');
+  const clearBtn = document.getElementById('clear');
+  const boardSizeNoteEl = document.getElementById('boardSizeNote');
+  const boardButtons = {
+    '44x30': document.getElementById('board44x30'),
+    '44x60': document.getElementById('board44x60'),
+    '44x90': document.getElementById('board44x90')
+  };
+
+  let currentTool = 'green';
+  let currentMode = 'points';
+  let currentBoardPreset = '44x60';
+  let measureMode = 'add';
+  let hoverSnap = null;
+
+  const state = {
+    green: { polygons: [], circles: [], rectangles: [] },
+    red: { polygons: [], circles: [], rectangles: [] }
+  };
+
   const objectives = { arr: [], set: new Set() };
-
-  // Measurements: list of segments {a:{r,c}, b:{r,c}}
   const measurements = [];
+  const masks = { polygons: [], circles: [], rectangles: [] };
 
-  // Erase masks (affect BOTH colors' FILLS only)
-  const masks = { polygons: [], circles: [] };
+  let pendingCircle = null;
+  let pendingAreaPoly = null;
+  let pendingRectangle = null;
+  let pendingMaskCircle = null;
+  let pendingMaskPoly = null;
+  let pendingMaskRectangle = null;
+  let previewPolySnap = null;
+  let pendingMeasure = null;
 
-  // Pending interactive shapes
-  let pendingCircle = null;      // for draw-circles
-  let pendingMaskCircle = null;  // for erase-circle
-  let pendingMaskPoly = null;    // for erase-points {pts:[{r,c},...]}
-  let previewPolySnap = null;    // current mouse snap for polygon preview
-
-  // Pending measure (first point picked)
-  let pendingMeasure = null; // {r,c}
-
-  // ===== Canvas sizing =====
-  function resizeCanvas(){
-    const dpr = window.devicePixelRatio || 1;
-    const logicalW = COLS*CELL + 2*MARGIN;
-    const logicalH = ROWS*CELL + 2*MARGIN;
-
-    // Main canvas
-    canvas.style.aspectRatio = `${logicalW} / ${logicalH}`;
-    const cssW = canvas.clientWidth || logicalW;
-    const scale = cssW / logicalW;
-    const cssH = logicalH * scale;
-    canvas.style.width = `${cssW}px`;
-    canvas.style.height = `${cssH}px`;
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.scale(canvas.width / logicalW, canvas.height / logicalH);
-
-    // Offscreen fills layer
-    off.width = Math.round(cssW * dpr);
-    off.height = Math.round(cssH * dpr);
-    offCtx.setTransform(1,0,0,1,0,0);
-    offCtx.scale(off.width / logicalW, off.height / logicalH);
+  function css(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
   }
 
-  // ===== Helpers =====
-  function css(name, fallback){
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return v || fallback;
+  function key(r, c) {
+    return `${r},${c}`;
   }
-  function key(r,c){ return `${r},${c}`; }
-  function logicalFromClient(px, py){
+
+  function getMapName() {
+    const name = mapNameInput.value.trim();
+    return name || '40k-map';
+  }
+
+  function sanitizeFilename(name) {
+    return name
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim() || '40k-map';
+  }
+
+  function getBoardConfig() {
+    return BOARD_PRESETS[currentBoardPreset];
+  }
+
+  function getRows() {
+    return getBoardConfig().rows;
+  }
+
+  function getCols() {
+    return getBoardConfig().cols;
+  }
+
+  function getLogicalWidth() {
+    return getCols() * CELL + 2 * MARGIN;
+  }
+
+  function getLogicalHeight() {
+    return getRows() * CELL + 2 * MARGIN;
+  }
+
+  function toXY(r, c) {
+    return {
+      x: MARGIN + c * CELL,
+      y: MARGIN + r * CELL
+    };
+  }
+
+  function normalizeRect(rect) {
+    return {
+      r1: Math.min(rect.start.r, rect.end.r),
+      c1: Math.min(rect.start.c, rect.end.c),
+      r2: Math.max(rect.start.r, rect.end.r),
+      c2: Math.max(rect.start.c, rect.end.c)
+    };
+  }
+
+  function rectHasArea(rect) {
+    return Boolean(rect && (rect.start.r !== rect.end.r || rect.start.c !== rect.end.c));
+  }
+
+  function drawRectPath(targetCtx, rect) {
+    const normalized = normalizeRect(rect);
+    const topLeft = toXY(normalized.r1, normalized.c1);
+    const bottomRight = toXY(normalized.r2, normalized.c2);
+    targetCtx.beginPath();
+    targetCtx.rect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+  }
+
+  function logicalFromClient(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const xCss = px - rect.left, yCss = py - rect.top;
-    const logicalW = COLS*CELL + 2*MARGIN, logicalH = ROWS*CELL + 2*MARGIN;
-    return { x: xCss * (logicalW/rect.width), y: yCss * (logicalH/rect.height) };
+    const logicalWidth = getLogicalWidth();
+    const logicalHeight = getLogicalHeight();
+    return {
+      x: (clientX - rect.left) * (logicalWidth / rect.width),
+      y: (clientY - rect.top) * (logicalHeight / rect.height)
+    };
   }
-  function snapToGrid(x, y){
-    const gx = Math.max(MARGIN, Math.min(MARGIN + COLS*CELL, x));
-    const gy = Math.max(MARGIN, Math.min(MARGIN + ROWS*CELL, y));
-    const c = Math.round((gx - MARGIN)/CELL);
-    const r = Math.round((gy - MARGIN)/CELL);
-    return { r: Math.max(0, Math.min(ROWS, r)), c: Math.max(0, Math.min(COLS, c)) };
-  }
-  function toXY(r,c){ return { x: MARGIN + c*CELL, y: MARGIN + r*CELL }; }
 
-  // ===== Points (draw) =====
-  function toggleFor(color, r, c){
-    const s = state[color];
-    const k = key(r,c);
-    if (s.set.has(k)) {
-      s.set.delete(k);
-      const i = s.arr.findIndex(p => p.r===r && p.c===c);
-      if (i >= 0) s.arr.splice(i,1);
-    } else {
-      s.set.add(k);
-      s.arr.push({r,c});
+  function snapToGrid(x, y) {
+    const rows = getRows();
+    const cols = getCols();
+    const clampedX = Math.max(MARGIN, Math.min(MARGIN + cols * CELL, x));
+    const clampedY = Math.max(MARGIN, Math.min(MARGIN + rows * CELL, y));
+    const c = Math.round((clampedX - MARGIN) / CELL);
+    const r = Math.round((clampedY - MARGIN) / CELL);
+
+    return {
+      r: Math.max(0, Math.min(rows, r)),
+      c: Math.max(0, Math.min(cols, c))
+    };
+  }
+
+  function drawPath(targetCtx, points, shouldClose = true) {
+    if (!points.length) {
+      return;
+    }
+
+    const start = toXY(points[0].r, points[0].c);
+    targetCtx.beginPath();
+    targetCtx.moveTo(start.x, start.y);
+
+    for (let i = 1; i < points.length; i++) {
+      const point = toXY(points[i].r, points[i].c);
+      targetCtx.lineTo(point.x, point.y);
+    }
+
+    if (shouldClose) {
+      targetCtx.closePath();
     }
   }
-  function toggleByTool(tool, r, c){
-    toggleFor(tool, r, c);
+
+  function distanceToSegment(px, py, ax, ay, bx, by) {
+    const abx = bx - ax;
+    const aby = by - ay;
+    const abLenSq = abx * abx + aby * aby;
+    if (abLenSq === 0) {
+      return Math.hypot(px - ax, py - ay);
+    }
+
+    const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / abLenSq));
+    const closestX = ax + abx * t;
+    const closestY = ay + aby * t;
+    return Math.hypot(px - closestX, py - closestY);
   }
 
-  // ===== Circles (draw) =====
-  function startCircle(tool, r, c){
-    const centerXY = toXY(r,c);
-    pendingCircle = { tool, center:{r,c}, centerXY, radiusPx:0 };
+  function setPressedState(buttons, selectedValue) {
+    for (const [value, button] of Object.entries(buttons)) {
+      button.setAttribute('aria-pressed', String(value === selectedValue));
+    }
   }
-  function updatePendingRadius(px, py){
-    if (!pendingCircle) return;
-    const {x,y} = logicalFromClient(px, py);
-    const {r,c} = snapToGrid(x,y);
-    const p = toXY(r,c);
-    const dx = p.x - pendingCircle.centerXY.x;
-    const dy = p.y - pendingCircle.centerXY.y;
-    pendingCircle.radiusPx = Math.max(0, Math.hypot(dx,dy));
-    draw(); // preview
+
+  function clearMasks() {
+    masks.polygons.length = 0;
+    masks.circles.length = 0;
+    masks.rectangles.length = 0;
   }
-  function commitCircle(){
-    if (!pendingCircle) return;
+
+  function resetMaskDraft() {
+    pendingMaskCircle = null;
+    pendingMaskPoly = null;
+    pendingAreaPoly = null;
+    pendingRectangle = null;
+    pendingMaskRectangle = null;
+    previewPolySnap = null;
+  }
+
+  function resetPendingState() {
+    pendingCircle = null;
+    resetMaskDraft();
+    pendingMeasure = null;
+  }
+
+  function clonePoints(points) {
+    return Array.isArray(points)
+      ? points
+          .filter(point => point && Number.isFinite(point.r) && Number.isFinite(point.c))
+          .map(point => ({ r: point.r, c: point.c }))
+      : [];
+  }
+
+  function clonePolygonList(polygons) {
+    return Array.isArray(polygons)
+      ? polygons.map(points => clonePoints(points)).filter(points => points.length >= 3)
+      : [];
+  }
+
+  function cloneRectangles(rectangles) {
+    return Array.isArray(rectangles)
+      ? rectangles
+          .filter(rect =>
+            rect &&
+            Number.isFinite(rect.r1) &&
+            Number.isFinite(rect.c1) &&
+            Number.isFinite(rect.r2) &&
+            Number.isFinite(rect.c2)
+          )
+          .map(rect => ({ r1: rect.r1, c1: rect.c1, r2: rect.r2, c2: rect.c2 }))
+      : [];
+  }
+
+  function cloneCircles(circles) {
+    return Array.isArray(circles)
+      ? circles
+          .filter(circle =>
+            circle &&
+            Number.isFinite(circle.r) &&
+            Number.isFinite(circle.c) &&
+            Number.isFinite(circle.radiusPx)
+          )
+          .map(circle => ({ r: circle.r, c: circle.c, radiusPx: circle.radiusPx }))
+      : [];
+  }
+
+  function cloneMeasurements(items) {
+    return Array.isArray(items)
+      ? items
+          .filter(item =>
+            item &&
+            item.a &&
+            item.b &&
+            Number.isFinite(item.a.r) &&
+            Number.isFinite(item.a.c) &&
+            Number.isFinite(item.b.r) &&
+            Number.isFinite(item.b.c)
+          )
+          .map(item => ({
+            a: { r: item.a.r, c: item.a.c },
+            b: { r: item.b.r, c: item.b.c }
+          }))
+      : [];
+  }
+
+  function getSerializedMap() {
+    return {
+      version: 1,
+      name: getMapName(),
+      board: { ...getBoardConfig(), preset: currentBoardPreset },
+      green: {
+        polygons: state.green.polygons.map(points => points.slice()),
+        circles: state.green.circles.slice(),
+        rectangles: state.green.rectangles.slice()
+      },
+      red: {
+        polygons: state.red.polygons.map(points => points.slice()),
+        circles: state.red.circles.slice(),
+        rectangles: state.red.rectangles.slice()
+      },
+      masks: {
+        polygons: masks.polygons.map(points => points.slice()),
+        circles: masks.circles.slice(),
+        rectangles: masks.rectangles.slice()
+      },
+      objectives: objectives.arr.slice(),
+      measurements: measurements.slice()
+    };
+  }
+
+  function loadMapData(data) {
+    if (data && typeof data.name === 'string' && data.name.trim()) {
+      mapNameInput.value = data.name.trim();
+    }
+
+    const boardPreset =
+      data &&
+      data.board &&
+      typeof data.board.preset === 'string' &&
+      BOARD_PRESETS[data.board.preset]
+        ? data.board.preset
+        : currentBoardPreset;
+
+    currentBoardPreset = boardPreset;
+    setPressedState(boardButtons, boardPreset);
+
+    state.green.polygons = clonePolygonList(data?.green?.polygons);
+    if (!state.green.polygons.length && Array.isArray(data?.green?.points)) {
+      const legacyGreen = clonePoints(data.green.points);
+      if (legacyGreen.length >= 3) state.green.polygons = [legacyGreen];
+    }
+
+    state.red.polygons = clonePolygonList(data?.red?.polygons);
+    if (!state.red.polygons.length && Array.isArray(data?.red?.points)) {
+      const legacyRed = clonePoints(data.red.points);
+      if (legacyRed.length >= 3) state.red.polygons = [legacyRed];
+    }
+    state.green.circles = cloneCircles(data?.green?.circles);
+    state.red.circles = cloneCircles(data?.red?.circles);
+    state.green.rectangles = cloneRectangles(data?.green?.rectangles);
+    state.red.rectangles = cloneRectangles(data?.red?.rectangles);
+
+    masks.polygons = clonePolygonList(data?.masks?.polygons);
+    masks.circles = cloneCircles(data?.masks?.circles);
+    masks.rectangles = cloneRectangles(data?.masks?.rectangles);
+
+    objectives.arr = clonePoints(data?.objectives);
+    objectives.set = new Set(objectives.arr.map(point => key(point.r, point.c)));
+
+    measurements.length = 0;
+    measurements.push(...cloneMeasurements(data?.measurements));
+
+    resetPendingState();
+    measureMode = 'add';
+    boardSizeNoteEl.textContent = `Board uses a 1" grid and is currently set to ${getBoardConfig().label}.`;
+    resizeCanvas();
+    updateHelp();
+    draw();
+  }
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const logicalWidth = getLogicalWidth();
+    const logicalHeight = getLogicalHeight();
+    canvas.style.aspectRatio = `${logicalWidth} / ${logicalHeight}`;
+
+    const cssWidth = canvas.clientWidth || logicalWidth;
+    const cssScale = cssWidth / logicalWidth;
+    const cssHeight = logicalHeight * cssScale;
+
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(canvas.width / logicalWidth, canvas.height / logicalHeight);
+
+    off.width = Math.round(cssWidth * dpr);
+    off.height = Math.round(cssHeight * dpr);
+    offCtx.setTransform(1, 0, 0, 1, 0, 0);
+    offCtx.scale(off.width / logicalWidth, off.height / logicalHeight);
+  }
+
+  function addPolygon(color, points) {
+    if (points.length < 3) {
+      return;
+    }
+
+    state[color].polygons.push(points.slice());
+  }
+
+  function startAreaPoly(tool, r, c) {
+    pendingAreaPoly = {
+      tool,
+      pts: [{ r, c }]
+    };
+    previewPolySnap = null;
+  }
+
+  function addAreaPolyPoint(r, c) {
+    if (!pendingAreaPoly) {
+      return;
+    }
+
+    pendingAreaPoly.pts.push({ r, c });
+  }
+
+  function finishAreaPoly() {
+    if (!pendingAreaPoly || pendingAreaPoly.pts.length < 3) {
+      return;
+    }
+
+    addPolygon(pendingAreaPoly.tool, pendingAreaPoly.pts);
+    pendingAreaPoly = null;
+    previewPolySnap = null;
+    draw();
+  }
+
+  function cancelAreaPoly() {
+    pendingAreaPoly = null;
+    previewPolySnap = null;
+  }
+
+  function startCircle(tool, r, c) {
+    pendingCircle = {
+      tool,
+      center: { r, c },
+      centerXY: toXY(r, c),
+      radiusPx: 0
+    };
+  }
+
+  function updateCircleRadius(target, clientX, clientY) {
+    if (!target) {
+      return;
+    }
+
+    const { x, y } = logicalFromClient(clientX, clientY);
+    const snapped = snapToGrid(x, y);
+    const point = toXY(snapped.r, snapped.c);
+    target.radiusPx = Math.max(
+      0,
+      Math.hypot(point.x - target.centerXY.x, point.y - target.centerXY.y)
+    );
+  }
+
+  function commitCircle() {
+    if (!pendingCircle) {
+      return;
+    }
+
     const { tool, center, radiusPx } = pendingCircle;
-    if (radiusPx > 0){
-      state[tool].circles.push({ r:center.r, c:center.c, radiusPx });
+    if (radiusPx > 0) {
+      state[tool].circles.push({ r: center.r, c: center.c, radiusPx });
     }
+
     pendingCircle = null;
     draw();
   }
 
-  // ===== Objectives =====
-  function toggleObjective(r,c){
-    const k = key(r,c);
-    if (objectives.set.has(k)){
-      objectives.set.delete(k);
-      const i = objectives.arr.findIndex(p => p.r===r && p.c===c);
-      if (i >= 0) objectives.arr.splice(i,1);
-    } else {
-      objectives.set.add(k);
-      objectives.arr.push({r,c});
-    }
-  }
-  function drawObjectives(){
-    const radius = Math.max(4, CELL * 0.22); // slightly larger
-    const fill   = css('--objective', '#197a4b');
-    for (const p of objectives.arr){
-      const {x,y} = toXY(p.r, p.c);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = fill;
-      ctx.fill();
-      // subtle ring for contrast
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-      ctx.stroke();
-      ctx.restore();
-    }
+  function startRectangle(tool, r, c) {
+    pendingRectangle = {
+      tool,
+      start: { r, c },
+      end: { r, c }
+    };
   }
 
-  // ===== Measure =====
-  function addMeasurement(a, b){
-    measurements.push({a, b});
-  }
-  function distInches(a, b){
-    const dx = b.c - a.c; // 1 col = 1 inch horizontally
-    const dy = b.r - a.r; // 1 row = 1 inch vertically
-    return Math.hypot(dx, dy);
-  }
-  function drawMeasurements(){
-    const color = css('--measure','#ffd36b');
-    ctx.save();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = color;
-
-    for (const m of measurements){
-      const A = toXY(m.a.r, m.a.c);
-      const B = toXY(m.b.r, m.b.c);
-      // line
-      ctx.beginPath();
-      ctx.moveTo(A.x, A.y);
-      ctx.lineTo(B.x, B.y);
-      ctx.stroke();
-
-      // endpoints (small markers)
-      ctx.beginPath(); ctx.arc(A.x, A.y, 3, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
-      ctx.beginPath(); ctx.arc(B.x, B.y, 3, 0, Math.PI*2); ctx.fill();
-
-      // label
-      const d = distInches(m.a, m.b);
-      drawMeasureLabel((A.x+B.x)/2, (A.y+B.y)/2, `${d.toFixed(2)} in`);
+  function updateRectangle(rect, r, c) {
+    if (!rect) {
+      return;
     }
 
-    // preview if one end picked
-    if (currentTool === 'measure' && pendingMeasure && hoverSnap){
-      const A = toXY(pendingMeasure.r, pendingMeasure.c);
-      const B = toXY(hoverSnap.r, hoverSnap.c);
-      ctx.setLineDash([6,6]);
-      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+    rect.end = { r, c };
+  }
 
-      ctx.beginPath(); ctx.arc(A.x, A.y, 3, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
-      ctx.beginPath(); ctx.arc(B.x, B.y, 3, 0, Math.PI*2); ctx.fill();
-
-      const d = distInches(pendingMeasure, hoverSnap);
-      drawMeasureLabel((A.x+B.x)/2, (A.y+B.y)/2, `${d.toFixed(2)} in`);
+  function commitRectangle() {
+    if (!pendingRectangle || !rectHasArea(pendingRectangle)) {
+      return;
     }
 
-    ctx.restore();
-  }
-
-  function drawMeasureLabel(cx, cy, text){
-    ctx.save();
-    // small offset so label doesn't sit exactly on line
-    const padX = 6, padY = 3;
-    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-    const metrics = ctx.measureText(text);
-    const w = Math.ceil(metrics.width) + padX*2;
-    const h = 16; // approx line height
-    const x = cx - w/2;
-    const y = cy - h/2;
-
-    // background pill
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    roundRect(ctx, x, y, w, h, 6);
-    ctx.fill();
-
-    // text
-    ctx.fillStyle = '#fff';
-    ctx.fillText(text, x + padX, y + h - 4);
-    ctx.restore();
-  }
-
-  function roundRect(ctx, x, y, w, h, r){
-    ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.arcTo(x+w, y, x+w, y+h, r);
-    ctx.arcTo(x+w, y+h, x, y+h, r);
-    ctx.arcTo(x, y+h, x, y, r);
-    ctx.arcTo(x, y, x+w, y, r);
-    ctx.closePath();
-  }
-
-  // ===== Erase masks =====
-  function startMaskCircle(r,c){
-    const centerXY = toXY(r,c);
-    pendingMaskCircle = { center:{r,c}, centerXY, radiusPx:0 };
-  }
-  function updateMaskRadius(px, py){
-    if (!pendingMaskCircle) return;
-    const {x,y} = logicalFromClient(px, py);
-    const {r,c} = snapToGrid(x,y);
-    const p = toXY(r,c);
-    pendingMaskCircle.radiusPx = Math.max(0, Math.hypot(p.x - pendingMaskCircle.centerXY.x, p.y - pendingMaskCircle.centerXY.y));
+    state[pendingRectangle.tool].rectangles.push(normalizeRect(pendingRectangle));
+    pendingRectangle = null;
     draw();
   }
-  function commitMaskCircle(){
-    if (!pendingMaskCircle) return;
+
+  function toggleObjective(r, c) {
+    const objectiveKey = key(r, c);
+
+    if (objectives.set.has(objectiveKey)) {
+      objectives.set.delete(objectiveKey);
+      const index = objectives.arr.findIndex(point => point.r === r && point.c === c);
+      if (index >= 0) {
+        objectives.arr.splice(index, 1);
+      }
+      return;
+    }
+
+    objectives.set.add(objectiveKey);
+    objectives.arr.push({ r, c });
+  }
+
+  function addMeasurement(a, b) {
+    measurements.push({ a, b });
+  }
+
+  function distInches(a, b) {
+    return Math.hypot(b.c - a.c, b.r - a.r);
+  }
+
+  function startMaskCircle(r, c) {
+    pendingMaskCircle = {
+      center: { r, c },
+      centerXY: toXY(r, c),
+      radiusPx: 0
+    };
+  }
+
+  function commitMaskCircle() {
+    if (!pendingMaskCircle) {
+      return;
+    }
+
     const { center, radiusPx } = pendingMaskCircle;
-    if (radiusPx > 0) masks.circles.push({ r:center.r, c:center.c, radiusPx });
+    if (radiusPx > 0) {
+      masks.circles.push({ r: center.r, c: center.c, radiusPx });
+    }
+
     pendingMaskCircle = null;
     draw();
   }
 
-  function startMaskPoly(r,c){
-    pendingMaskPoly = { pts: [{r,c}] };
+  function startMaskRectangle(r, c) {
+    pendingMaskRectangle = {
+      start: { r, c },
+      end: { r, c }
+    };
+  }
+
+  function commitMaskRectangle() {
+    if (!pendingMaskRectangle || !rectHasArea(pendingMaskRectangle)) {
+      return;
+    }
+
+    masks.rectangles.push(normalizeRect(pendingMaskRectangle));
+    pendingMaskRectangle = null;
+    draw();
+  }
+
+  function startMaskPoly(r, c) {
+    pendingMaskPoly = { pts: [{ r, c }] };
     previewPolySnap = null;
   }
-  function addMaskPolyPoint(r,c){
-    if (!pendingMaskPoly) return;
-    pendingMaskPoly.pts.push({r,c});
+
+  function addMaskPolyPoint(r, c) {
+    if (!pendingMaskPoly) {
+      return;
+    }
+
+    pendingMaskPoly.pts.push({ r, c });
   }
-  function finishMaskPoly(){
-    if (pendingMaskPoly && pendingMaskPoly.pts.length >= 3){
+
+  function finishMaskPoly() {
+    if (pendingMaskPoly && pendingMaskPoly.pts.length >= 3) {
       masks.polygons.push(pendingMaskPoly.pts.slice());
     }
+
     pendingMaskPoly = null;
     previewPolySnap = null;
     draw();
   }
-  function cancelMaskPoly(){
+
+  function cancelMaskPoly() {
     pendingMaskPoly = null;
     previewPolySnap = null;
-    draw();
   }
 
-  // ===== Drawing =====
-  let hoverSnap = null; // live mouse snap (used for measuring preview)
+  function cancelCurrentDraft() {
+    pendingCircle = null;
+    pendingRectangle = null;
+    pendingMaskCircle = null;
+    pendingMaskRectangle = null;
+    cancelAreaPoly();
+    cancelMaskPoly();
+    pendingMeasure = null;
+  }
 
-  function draw(){
-    // Background + grid
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-	ctx.save();
-	ctx.fillStyle = css('--canvas-bg', '#161a2e'); // <- was a hard-coded color
-	ctx.fillRect(0,0,canvas.width,canvas.height);
-	ctx.restore();
+  function removeMeasurementAt(x, y) {
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+    const threshold = Math.max(12, CELL * 0.45);
 
-    // Grid
+    for (let i = 0; i < measurements.length; i++) {
+      const start = toXY(measurements[i].a.r, measurements[i].a.c);
+      const end = toXY(measurements[i].b.r, measurements[i].b.c);
+      const distance = distanceToSegment(x, y, start.x, start.y, end.x, end.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex >= 0 && bestDistance <= threshold) {
+      measurements.splice(bestIndex, 1);
+      return true;
+    }
+
+    return false;
+  }
+
+  function canFinishCurrentShape() {
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'points') {
+      return Boolean(pendingAreaPoly && pendingAreaPoly.tool === currentTool && pendingAreaPoly.pts.length >= 3);
+    }
+
+    if (currentTool === 'erase' && currentMode === 'points') {
+      return Boolean(pendingMaskPoly && pendingMaskPoly.pts.length >= 3);
+    }
+
+    if (currentTool === 'erase' && currentMode === 'circle') {
+      return Boolean(pendingMaskCircle && pendingMaskCircle.radiusPx > 0);
+    }
+
+    if (currentTool === 'erase' && currentMode === 'rectangle') {
+      return rectHasArea(pendingMaskRectangle);
+    }
+
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'circle') {
+      return Boolean(pendingCircle && pendingCircle.radiusPx > 0);
+    }
+
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'rectangle') {
+      return rectHasArea(pendingRectangle);
+    }
+
+    return false;
+  }
+
+  function finishCurrentShape() {
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'points') {
+      finishAreaPoly();
+      return;
+    }
+
+    if (currentTool === 'erase' && currentMode === 'points') {
+      finishMaskPoly();
+      return;
+    }
+
+    if (currentTool === 'erase' && currentMode === 'circle') {
+      commitMaskCircle();
+      return;
+    }
+
+    if (currentTool === 'erase' && currentMode === 'rectangle') {
+      commitMaskRectangle();
+      return;
+    }
+
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'circle') {
+      commitCircle();
+      return;
+    }
+
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'rectangle') {
+      commitRectangle();
+    }
+  }
+
+  function getShapeLabel() {
+    if (currentMode === 'circle') return 'circle';
+    if (currentMode === 'rectangle') return 'rectangle';
+    return 'polygon';
+  }
+
+  function getDraftStatusText() {
+    if (currentTool === 'measure') {
+      if (measureMode === 'erase') {
+        return 'Draft: Click a measurement line to remove it';
+      }
+      return pendingMeasure
+        ? 'Draft: Pick the end point for the measurement'
+        : 'Draft: Click a start point to measure';
+    }
+
+    if (currentTool === 'objective') {
+      return 'Draft: Click any intersection to toggle an objective';
+    }
+
+    if (currentTool === 'erase') {
+      if (currentMode === 'circle') {
+        return pendingMaskCircle
+          ? 'Draft: Move the mouse, then click again to finish the erase circle'
+          : 'Draft: Click once to place the erase circle center';
+      }
+
+      if (currentMode === 'rectangle') {
+        return pendingMaskRectangle
+          ? 'Draft: Move the mouse, then click again to finish the erase rectangle'
+          : 'Draft: Click once to place the first erase rectangle corner';
+      }
+
+      if (pendingMaskPoly) {
+        return `Draft: ${pendingMaskPoly.pts.length} polygon point(s) placed. Click to add more, Enter to finish.`;
+      }
+
+      return 'Draft: Click to begin an erase polygon';
+    }
+
+    if (currentMode === 'circle') {
+      return pendingCircle
+        ? 'Draft: Move the mouse, then click again to finish the area circle'
+        : 'Draft: Click once to place the area circle center';
+    }
+
+    if (currentMode === 'rectangle') {
+      return pendingRectangle
+        ? 'Draft: Move the mouse, then click again to finish the area rectangle'
+        : 'Draft: Click once to place the first area rectangle corner';
+    }
+
+    if (pendingAreaPoly && pendingAreaPoly.tool === currentTool) {
+      return `Draft: ${pendingAreaPoly.pts.length} polygon point(s) placed. Click to add more, then press Finish Shape.`;
+    }
+
+    return 'Draft: Click intersections to start a polygon area draft';
+  }
+
+  function syncDraftControls() {
+    const hasDraft = Boolean(
+      pendingCircle ||
+      pendingRectangle ||
+      pendingAreaPoly ||
+      pendingMaskCircle ||
+      pendingMaskRectangle ||
+      pendingMaskPoly ||
+      pendingMeasure
+    );
+
+    finishMaskBtn.disabled = !canFinishCurrentShape();
+    cancelDraftBtn.disabled = !hasDraft;
+    toggleMeasureEraseBtn.disabled = currentTool !== 'measure';
+    toggleMeasureEraseBtn.setAttribute('aria-pressed', String(currentTool === 'measure' && measureMode === 'erase'));
+    draftStatusEl.innerHTML = `<strong>Draft:</strong> ${getDraftStatusText().replace(/^Draft:\s*/, '')}`;
+  }
+
+  function drawMeasureLabel(cx, cy, text) {
+    const padX = 12;
+    const h = 32;
+
     ctx.save();
-    ctx.lineWidth = 1;
-    for (let r=0;r<=ROWS;r++){
-      ctx.beginPath(); ctx.strokeStyle = (r%5===0)? GRID_BOLD : GRID_COLOR;
-      const y = MARGIN + r*CELL + 0.5;
-      ctx.moveTo(MARGIN, y); ctx.lineTo(MARGIN + COLS*CELL, y); ctx.stroke();
+    ctx.font = 'bold 22px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+
+    const width = Math.ceil(ctx.measureText(text).width) + padX * 2;
+    const x = cx - width / 2;
+    const y = cy - h / 2;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    roundRect(ctx, x, y, width, h, 6);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, x + padX, y + h - 9);
+    ctx.restore();
+  }
+
+  function roundRect(targetCtx, x, y, w, h, r) {
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + r, y);
+    targetCtx.arcTo(x + w, y, x + w, y + h, r);
+    targetCtx.arcTo(x + w, y + h, x, y + h, r);
+    targetCtx.arcTo(x, y + h, x, y, r);
+    targetCtx.arcTo(x, y, x + w, y, r);
+    targetCtx.closePath();
+  }
+
+  function fillPolygonLayer(targetCtx, color) {
+    for (const polygon of state[color].polygons) {
+      if (polygon.length < 3) {
+        continue;
+      }
+
+      targetCtx.save();
+      drawPath(targetCtx, polygon);
+      targetCtx.fillStyle = COLORS[color].fill;
+      targetCtx.fill();
+      targetCtx.restore();
     }
-    for (let c=0;c<=COLS;c++){
-      ctx.beginPath(); ctx.strokeStyle = (c%5===0)? GRID_BOLD : GRID_COLOR;
-      const x = MARGIN + c*CELL + 0.5;
-      ctx.moveTo(x, MARGIN); ctx.lineTo(x, MARGIN + ROWS*CELL); ctx.stroke();
+  }
+
+  function strokePolygonLayer(targetCtx, color) {
+    for (const polygon of state[color].polygons) {
+      if (polygon.length < 2) {
+        continue;
+      }
+
+      targetCtx.save();
+      drawPath(targetCtx, polygon, polygon.length >= 3);
+      targetCtx.lineWidth = 2;
+      targetCtx.strokeStyle = COLORS[color].stroke;
+      targetCtx.stroke();
+      targetCtx.restore();
     }
+  }
+
+  function fillCircleLayer(targetCtx, color) {
+    for (const circle of state[color].circles) {
+      const { x, y } = toXY(circle.r, circle.c);
+      targetCtx.save();
+      targetCtx.beginPath();
+      targetCtx.arc(x, y, circle.radiusPx, 0, Math.PI * 2);
+      targetCtx.fillStyle = COLORS[color].fill;
+      targetCtx.fill();
+      targetCtx.restore();
+    }
+  }
+
+  function strokeCircleLayer(targetCtx, color) {
+    for (const circle of state[color].circles) {
+      const { x, y } = toXY(circle.r, circle.c);
+      targetCtx.save();
+      targetCtx.beginPath();
+      targetCtx.arc(x, y, circle.radiusPx, 0, Math.PI * 2);
+      targetCtx.lineWidth = 2;
+      targetCtx.strokeStyle = COLORS[color].stroke;
+      targetCtx.stroke();
+      targetCtx.restore();
+    }
+  }
+
+  function fillRectangleLayer(targetCtx, color) {
+    for (const rect of state[color].rectangles) {
+      targetCtx.save();
+      drawRectPath(targetCtx, { start: { r: rect.r1, c: rect.c1 }, end: { r: rect.r2, c: rect.c2 } });
+      targetCtx.fillStyle = COLORS[color].fill;
+      targetCtx.fill();
+      targetCtx.restore();
+    }
+  }
+
+  function strokeRectangleLayer(targetCtx, color) {
+    for (const rect of state[color].rectangles) {
+      targetCtx.save();
+      drawRectPath(targetCtx, { start: { r: rect.r1, c: rect.c1 }, end: { r: rect.r2, c: rect.c2 } });
+      targetCtx.lineWidth = 2;
+      targetCtx.strokeStyle = COLORS[color].stroke;
+      targetCtx.stroke();
+      targetCtx.restore();
+    }
+  }
+
+  function drawObjectives() {
+    const radius = CELL;
+
+    for (const objective of objectives.arr) {
+      const { x, y } = toXY(objective.r, objective.c);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = OBJECTIVE_COLOR;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.stroke();
+      ctx.fillStyle = '#f3f4f6';
+      ctx.font = `${Math.round(CELL)}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('💀', x, y + 1);
+      ctx.restore();
+    }
+  }
+
+  function drawMeasurements() {
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = MEASURE_COLOR;
+
+    for (const measurement of measurements) {
+      const start = toXY(measurement.a.r, measurement.a.c);
+      const end = toXY(measurement.b.r, measurement.b.c);
+
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+
+      ctx.fillStyle = MEASURE_COLOR;
+      ctx.beginPath();
+      ctx.arc(start.x, start.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawMeasureLabel(
+        (start.x + end.x) / 2,
+        (start.y + end.y) / 2,
+        `${Math.round(distInches(measurement.a, measurement.b))} "`
+      );
+    }
+
+    if (currentTool === 'measure' && pendingMeasure && hoverSnap) {
+      const start = toXY(pendingMeasure.r, pendingMeasure.c);
+      const end = toXY(hoverSnap.r, hoverSnap.c);
+
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+
+      ctx.fillStyle = MEASURE_COLOR;
+      ctx.beginPath();
+      ctx.arc(start.x, start.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawMeasureLabel(
+        (start.x + end.x) / 2,
+        (start.y + end.y) / 2,
+        `${Math.round(distInches(pendingMeasure, hoverSnap))} "`
+      );
+    }
+
+    ctx.restore();
+  }
+
+  function drawCirclePreview(circle, color, dashed = false) {
+    if (!circle || circle.radiusPx <= 0) {
+      return;
+    }
+
+    ctx.save();
+    if (dashed) {
+      ctx.setLineDash([6, 6]);
+    }
+    ctx.beginPath();
+    ctx.arc(circle.centerXY.x, circle.centerXY.y, circle.radiusPx, 0, Math.PI * 2);
+    ctx.fillStyle = color.fill;
+    ctx.strokeStyle = color.stroke;
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPolygonPreview(points, previewPoint, color, dashed = false) {
+    if (!points || !points.length) {
+      return;
+    }
+
+    const previewPoints = points.slice();
+    if (previewPoint) {
+      previewPoints.push(previewPoint);
+    }
+
+    if (previewPoints.length < 2) {
+      return;
+    }
+
+    ctx.save();
+    if (dashed) {
+      ctx.setLineDash([6, 6]);
+    }
+
+    if (previewPoints.length >= 3) {
+      drawPath(ctx, previewPoints);
+      ctx.fillStyle = color.fill;
+      ctx.fill();
+    } else {
+      drawPath(ctx, previewPoints, false);
+    }
+
+    ctx.strokeStyle = color.stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRectanglePreview(rect, color, dashed = false) {
+    if (!rect || !rectHasArea(rect)) {
+      return;
+    }
+
+    ctx.save();
+    if (dashed) {
+      ctx.setLineDash([6, 6]);
+    }
+    drawRectPath(ctx, rect);
+    ctx.fillStyle = color.fill;
+    ctx.strokeStyle = color.stroke;
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStatus() {
+    const board = getBoardConfig();
+    const greenPolygons = state.green.polygons.length;
+    const redPolygons = state.red.polygons.length;
+    const greenCircles = state.green.circles.length;
+    const redCircles = state.red.circles.length;
+    const greenRectangles = state.green.rectangles.length;
+    const redRectangles = state.red.rectangles.length;
+
+    statusEl.textContent =
+      `Board: ${board.label} | Tool: ${currentTool} | Mode: ${currentMode} | ` +
+      `G poly:${greenPolygons} G circ:${greenCircles} G rect:${greenRectangles} | ` +
+      `R poly:${redPolygons} R circ:${redCircles} R rect:${redRectangles} | ` +
+      `Masks: P${masks.polygons.length}/C${masks.circles.length}/R${masks.rectangles.length} | ` +
+      `Objectives: ${objectives.arr.length} | Measures: ${measurements.length}`;
+
+    syncDraftControls();
+  }
+
+  function updateHelp() {
+    if (currentTool === 'objective') {
+      helpEl.textContent = 'Objective: Click intersections to toggle an objective marker.';
+      return;
+    }
+
+    if (currentTool === 'measure') {
+      helpEl.textContent = measureMode === 'erase'
+        ? 'Erase Measure: click a measurement line to remove it.'
+        : 'Measure: Click a start point, then an end point. Distance shows in inches (1 grid = 1").';
+      return;
+    }
+
+    if (currentTool === 'erase') {
+      helpEl.textContent = currentMode === 'circle'
+        ? 'Erase Area + Circle: click once for the center, move to size it, then click again to cut the hole.'
+        : currentMode === 'rectangle'
+          ? 'Erase Area + Rectangle: click once for the first corner, move to size it, then click again to cut the rectangle.'
+          : 'Erase Area + Polygon: click to place corners. Press Enter or Finish Shape when the outline is complete.';
+      return;
+    }
+
+    if (currentMode === 'circle') {
+      helpEl.textContent = 'Area + Circle: click once for the center, move to size it, then click again to place the area.';
+      return;
+    }
+
+    if (currentMode === 'rectangle') {
+      helpEl.textContent = 'Area + Rectangle: click once for the first corner, move to size it, then click again to place the area.';
+      return;
+    }
+
+    helpEl.textContent = 'Area + Polygon: click intersections to build the outline, then press Finish Shape to commit it or Cancel Draft to discard it.';
+  }
+
+  function draw() {
+    const rows = getRows();
+    const cols = getCols();
+    const logicalWidth = getLogicalWidth();
+    const logicalHeight = getLogicalHeight();
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    // === Build FILLS on offscreen ===
-    offCtx.clearRect(0,0,off.width,off.height);
+    ctx.save();
+    ctx.fillStyle = css('--canvas-bg', '#161a2e');
+    ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+    ctx.restore();
 
-    // Polygon fills
-    fillPolygonLayer(offCtx, 'green'); fillPolygonLayer(offCtx, 'red');
-    // Circle fills
-    fillCircleLayer(offCtx, 'green');  fillCircleLayer(offCtx, 'red');
+    offCtx.save();
+    offCtx.setTransform(1, 0, 0, 1, 0, 0);
+    offCtx.clearRect(0, 0, off.width, off.height);
+    offCtx.restore();
+    fillPolygonLayer(offCtx, 'green');
+    fillPolygonLayer(offCtx, 'red');
+    fillCircleLayer(offCtx, 'green');
+    fillCircleLayer(offCtx, 'red');
+    fillRectangleLayer(offCtx, 'green');
+    fillRectangleLayer(offCtx, 'red');
 
-    // Apply ERASE masks (destination-out on the fills layer)
     offCtx.save();
     offCtx.globalCompositeOperation = 'destination-out';
-    // polygon masks
     offCtx.fillStyle = '#000';
-    for (const poly of masks.polygons){
+
+    for (const polygon of masks.polygons) {
+      drawPath(offCtx, polygon);
+      offCtx.fill();
+    }
+
+    for (const circle of masks.circles) {
+      const center = toXY(circle.r, circle.c);
       offCtx.beginPath();
-      const p0 = toXY(poly[0].r, poly[0].c); offCtx.moveTo(p0.x, p0.y);
-      for (let i=1;i<poly.length;i++){ const p = toXY(poly[i].r, poly[i].c); offCtx.lineTo(p.x, p.y); }
-      offCtx.closePath(); offCtx.fill();
+      offCtx.arc(center.x, center.y, circle.radiusPx, 0, Math.PI * 2);
+      offCtx.fill();
     }
-    // circle masks
-    for (const m of masks.circles){
-      const cxy = toXY(m.r, m.c);
-      offCtx.beginPath(); offCtx.arc(cxy.x, cxy.y, m.radiusPx, 0, Math.PI*2); offCtx.fill();
+
+    for (const rect of masks.rectangles) {
+      drawRectPath(offCtx, { start: { r: rect.r1, c: rect.c1 }, end: { r: rect.r2, c: rect.c2 } });
+      offCtx.fill();
     }
+
     offCtx.restore();
 
-    // Draw the resulting FILLS onto main canvas (logical units for sync)
-    const logicalW = COLS * CELL + 2 * MARGIN;
-    const logicalH = ROWS * CELL + 2 * MARGIN;
-    ctx.drawImage(off, 0, 0, logicalW, logicalH);
+    ctx.drawImage(off, 0, 0, logicalWidth, logicalHeight);
 
-    // Outlines (kept, but easy to hide if you want)
-    strokePolygonLayer(ctx, 'green'); strokePolygonLayer(ctx, 'red');
-    strokeCircleLayer(ctx, 'green');  strokeCircleLayer(ctx, 'red');
+    strokePolygonLayer(ctx, 'green');
+    strokePolygonLayer(ctx, 'red');
+    strokeCircleLayer(ctx, 'green');
+    strokeCircleLayer(ctx, 'red');
+    strokeRectangleLayer(ctx, 'green');
+    strokeRectangleLayer(ctx, 'red');
 
-    // Measurement overlays (lines + labels)
+    ctx.save();
+    ctx.lineWidth = 1;
+
+    for (let r = 0; r <= rows; r++) {
+      const y = MARGIN + r * CELL + 0.5;
+      ctx.beginPath();
+      ctx.strokeStyle = r % 5 === 0 ? GRID_BOLD : GRID_COLOR;
+      ctx.moveTo(MARGIN, y);
+      ctx.lineTo(MARGIN + cols * CELL, y);
+      ctx.stroke();
+    }
+
+    for (let c = 0; c <= cols; c++) {
+      const x = MARGIN + c * CELL + 0.5;
+      ctx.beginPath();
+      ctx.strokeStyle = c % 5 === 0 ? GRID_BOLD : GRID_COLOR;
+      ctx.moveTo(x, MARGIN);
+      ctx.lineTo(x, MARGIN + rows * CELL);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure') {
+      if (currentMode === 'circle' && pendingCircle) {
+        drawCirclePreview(pendingCircle, COLORS[currentTool]);
+      }
+
+      if (currentMode === 'rectangle' && pendingRectangle) {
+        drawRectanglePreview(pendingRectangle, COLORS[currentTool]);
+      }
+
+      if (currentMode === 'points' && hoverSnap) {
+        const draftShape = pendingAreaPoly && pendingAreaPoly.tool === currentTool
+          ? pendingAreaPoly.pts
+          : [];
+        if (draftShape.length > 0) {
+          const lastPoint = draftShape[draftShape.length - 1];
+          const isSameAsLast = lastPoint.r === hoverSnap.r && lastPoint.c === hoverSnap.c;
+          drawPolygonPreview(
+            draftShape,
+            isSameAsLast ? null : hoverSnap,
+            COLORS[currentTool]
+          );
+        }
+      }
+    }
+
     drawMeasurements();
-
-    // Objective markers on top
     drawObjectives();
 
-    // Pending previews for masks
-    if (pendingMaskCircle && pendingMaskCircle.radiusPx > 0){
-      const {x,y} = pendingMaskCircle.centerXY;
-      ctx.save(); ctx.setLineDash([6,6]);
-      ctx.beginPath(); ctx.arc(x,y, pendingMaskCircle.radiusPx, 0, Math.PI*2);
-      ctx.lineWidth = 2; ctx.strokeStyle = css('--measure','#ffd36b'); ctx.stroke();
-      ctx.restore();
+    if (pendingMaskCircle && pendingMaskCircle.radiusPx > 0) {
+      drawCirclePreview(pendingMaskCircle, { fill: 'rgba(29, 25, 22, 0.14)', stroke: MEASURE_COLOR }, true);
     }
-    if (pendingMaskPoly){
-      ctx.save();
-      ctx.setLineDash([6,6]); ctx.lineWidth = 2; ctx.strokeStyle = css('--measure','#ffd36b');
-      const pts = pendingMaskPoly.pts;
-      if (pts.length){
-        const p0 = toXY(pts[0].r, pts[0].c); ctx.beginPath(); ctx.moveTo(p0.x, p0.y);
-        for (let i=1;i<pts.length;i++){ const p = toXY(pts[i].r, pts[i].c); ctx.lineTo(p.x, p.y); }
-        if (previewPolySnap){ const q = toXY(previewPolySnap.r, previewPolySnap.c); ctx.lineTo(q.x, q.y); }
-        ctx.stroke();
+
+    if (pendingMaskRectangle) {
+      drawRectanglePreview(
+        pendingMaskRectangle,
+        { fill: 'rgba(29, 25, 22, 0.14)', stroke: MEASURE_COLOR },
+        true
+      );
+    }
+
+    if (pendingMaskPoly) {
+      drawPolygonPreview(
+        pendingMaskPoly.pts,
+        previewPolySnap,
+        { fill: 'rgba(29, 25, 22, 0.14)', stroke: MEASURE_COLOR },
+        true
+      );
+    }
+
+    drawStatus();
+  }
+
+  function setTool(tool) {
+    currentTool = tool;
+    pendingCircle = null;
+    pendingRectangle = null;
+
+    if (tool !== 'erase') {
+      resetMaskDraft();
+    }
+
+    if (tool !== 'measure') {
+      pendingMeasure = null;
+      measureMode = 'add';
+    }
+
+    setPressedState(toolButtons, tool);
+    updateHelp();
+    draw();
+  }
+
+  function setMode(mode) {
+    currentMode = mode;
+
+    if (mode !== 'circle') {
+      pendingCircle = null;
+      pendingMaskCircle = null;
+    }
+
+    if (mode !== 'rectangle') {
+      pendingRectangle = null;
+      pendingMaskRectangle = null;
+    }
+
+    setPressedState(modeButtons, mode);
+    updateHelp();
+    draw();
+  }
+
+  function setBoardPreset(boardPreset) {
+    currentBoardPreset = boardPreset;
+    setPressedState(boardButtons, boardPreset);
+    boardSizeNoteEl.textContent = `Board uses a 1" grid and is currently set to ${getBoardConfig().label}.`;
+    resizeCanvas();
+    draw();
+  }
+
+  canvas.addEventListener('click', event => {
+    const { x, y } = logicalFromClient(event.clientX, event.clientY);
+    const { r, c } = snapToGrid(x, y);
+
+    if (currentTool === 'erase') {
+      if (currentMode === 'circle') {
+        if (!pendingMaskCircle) {
+          startMaskCircle(r, c);
+        } else {
+          commitMaskCircle();
+        }
+      } else if (currentMode === 'rectangle') {
+        if (!pendingMaskRectangle) {
+          startMaskRectangle(r, c);
+        } else {
+          updateRectangle(pendingMaskRectangle, r, c);
+          commitMaskRectangle();
+        }
+      } else {
+        if (!pendingMaskPoly) {
+          startMaskPoly(r, c);
+        } else {
+          addMaskPolyPoint(r, c);
+        }
       }
-      ctx.restore();
-    }
 
-    // Status
-    const g = state.green.arr.length, r = state.red.arr.length;
-    const gc = state.green.circles.length, rc = state.red.circles.length;
-    const objs = objectives.arr.length;
-    const mcnt = measurements.length;
-    statusEl.textContent =
-      `Tool: ${currentTool} • Mode: ${currentMode} • ` +
-      `G pts:${g} G circ:${gc} • R pts:${r} R circ:${rc} • ` +
-      `Masks: P${masks.polygons.length}/C${masks.circles.length} • ` +
-      `Objectives: ${objs} • Measures: ${mcnt}`;
-  }
-
-  function fillPolygonLayer(c, color){
-    const s = state[color]; const style = COLORS[color];
-    if (s.arr.length >= 3){
-      c.save(); c.beginPath();
-      const p0 = toXY(s.arr[0].r, s.arr[0].c); c.moveTo(p0.x, p0.y);
-      for (let i=1;i<s.arr.length;i++){ const p = toXY(s.arr[i].r, s.arr[i].c); c.lineTo(p.x, p.y); }
-      c.closePath(); c.fillStyle = style.fill; c.fill(); c.restore();
-    }
-  }
-  function strokePolygonLayer(c, color){
-    const s = state[color]; const style = COLORS[color];
-    if (s.arr.length >= 2){
-      c.save(); c.beginPath();
-      const p0 = toXY(s.arr[0].r, s.arr[0].c); c.moveTo(p0.x, p0.y);
-      for (let i=1;i<s.arr.length;i++){ const p = toXY(s.arr[i].r, s.arr[i].c); c.lineTo(p.x, p.y); }
-      if (s.arr.length >= 3) c.closePath();
-      c.lineWidth = 2; c.strokeStyle = style.stroke; c.stroke(); c.restore();
-    }
-  }
-  function fillCircleLayer(c, color){
-    const style = COLORS[color];
-    for (const cc of state[color].circles){
-      const {x,y} = toXY(cc.r, cc.c);
-      c.save(); c.beginPath(); c.arc(x,y, cc.radiusPx, 0, Math.PI*2);
-      c.fillStyle = style.fill; c.fill(); c.restore();
-    }
-  }
-  function strokeCircleLayer(c, color){
-    const style = COLORS[color];
-    for (const cc of state[color].circles){
-      const {x,y} = toXY(cc.r, cc.c);
-      c.save(); c.beginPath(); c.arc(x,y, cc.radiusPx, 0, Math.PI*2);
-      c.lineWidth = 2; c.strokeStyle = style.stroke; c.stroke(); c.restore();
-    }
-  }
-
-  // ===== Events =====
-  canvas.addEventListener('click', (e)=>{
-    const {x,y} = logicalFromClient(e.clientX, e.clientY);
-    const {r,c} = snapToGrid(x,y);
-
-    // Erase
-    if (currentTool === 'erase'){
-      if (currentMode === 'circle'){
-        if (!pendingMaskCircle) startMaskCircle(r,c);
-        else commitMaskCircle();
-      } else { // points -> polygon mask
-        if (!pendingMaskPoly) startMaskPoly(r,c);
-        else addMaskPolyPoint(r,c);
-      }
       draw();
       return;
     }
 
-    // Objective markers (ignore mode)
-    if (currentTool === 'objective'){
+    if (currentTool === 'objective') {
       toggleObjective(r, c);
       draw();
       return;
     }
 
-    // Measure (ignore mode)
-    if (currentTool === 'measure'){
-      if (!pendingMeasure){
-        pendingMeasure = {r,c};
+    if (currentTool === 'measure') {
+      if (measureMode === 'erase') {
+        removeMeasurementAt(x, y);
+        draw();
+        return;
+      }
+
+      if (!pendingMeasure) {
+        pendingMeasure = { r, c };
       } else {
-        addMeasurement(pendingMeasure, {r,c});
+        addMeasurement(pendingMeasure, { r, c });
         pendingMeasure = null;
       }
+
       draw();
       return;
     }
 
-    // Draw tools
-    if (currentMode === 'points'){
-      toggleByTool(currentTool, r, c);
-      draw();
-    } else { // circle draw
-      if (!pendingCircle) startCircle(currentTool, r, c);
-      else commitCircle();
-    }
-  });
-
-  canvas.addEventListener('mousemove', (e)=>{
-    const {x,y} = logicalFromClient(e.clientX, e.clientY);
-    const snap = snapToGrid(x,y);
-    hoverSnap = snap;
-
-    if (currentTool === 'erase'){
-      if (currentMode === 'circle' && pendingMaskCircle) updateMaskRadius(e.clientX, e.clientY);
-      if (currentMode === 'points' && pendingMaskPoly){ previewPolySnap = snap; draw(); }
-      return;
-    }
-    if (currentTool === 'measure' && pendingMeasure){
-      draw(); // will use hoverSnap for preview
-      return;
-    }
-    if (currentMode === 'circle' && pendingCircle) updatePendingRadius(e.clientX, e.clientY);
-  });
-
-  window.addEventListener('keydown', (e)=>{
-    if (e.key === 'Escape'){
-      pendingCircle = null;
-      pendingMaskCircle = null;
-      cancelMaskPoly(); // cancels polygon if any
-      pendingMeasure = null;
-      draw();
-    }
-    if (e.key === 'Enter' && pendingMaskPoly && currentTool === 'erase'){
-      finishMaskPoly();
-    }
-  });
-
-  window.addEventListener('resize', ()=>{ resizeCanvas(); draw(); });
-
-  // ===== Toolbar =====
-  const pickGreenBtn = document.getElementById('pickGreen');
-  const pickRedBtn   = document.getElementById('pickRed');
-  const pickObjectiveBtn = document.getElementById('pickObjective');
-  const pickEraseBtn = document.getElementById('pickErase');
-  const pickMeasureBtn = document.getElementById('pickMeasure');
-  const modePointsBtn= document.getElementById('modePoints');
-  const modeCircleBtn= document.getElementById('modeCircle');
-  const finishMaskBtn= document.getElementById('finishMask');
-
-  function setTool(sel){
-    currentTool = sel;
-    pickGreenBtn.setAttribute('aria-pressed', sel==='green');
-    pickRedBtn.setAttribute('aria-pressed',   sel==='red');
-    pickObjectiveBtn.setAttribute('aria-pressed', sel==='objective');
-    pickEraseBtn.setAttribute('aria-pressed', sel==='erase');
-    pickMeasureBtn.setAttribute('aria-pressed', sel==='measure');
-    if (sel !== 'erase'){ pendingMaskCircle = null; cancelMaskPoly(); }
-    if (sel !== 'measure'){ pendingMeasure = null; }
-    updateHelp(); draw();
-  }
-  function setMode(m){
-    currentMode = m;
-    modePointsBtn.setAttribute('aria-pressed', m==='points');
-    modeCircleBtn.setAttribute('aria-pressed', m==='circle');
-    if (m !== 'circle'){ pendingCircle = null; pendingMaskCircle = null; }
-    updateHelp(); draw();
-  }
-
-  pickGreenBtn.addEventListener('click', ()=> setTool('green'));
-  pickRedBtn.addEventListener('click',   ()=> setTool('red'));
-  pickObjectiveBtn.addEventListener('click', ()=> setTool('objective'));
-  pickEraseBtn.addEventListener('click', ()=> setTool('erase'));
-  pickMeasureBtn.addEventListener('click', ()=> setTool('measure'));
-  modePointsBtn.addEventListener('click',()=> setMode('points'));
-  modeCircleBtn.addEventListener('click',()=> setMode('circle'));
-
-  finishMaskBtn.addEventListener('click', ()=> finishMaskPoly());
-
-  document.getElementById('undo').addEventListener('click', ()=>{
-    if (currentTool === 'objective'){
-      const last = objectives.arr.pop();
-      if (last) objectives.set.delete(key(last.r,last.c));
-      draw(); return;
-    }
-    if (currentTool === 'measure'){
-      measurements.pop();
-      draw(); return;
-    }
-    if (currentTool === 'erase'){
-      if (currentMode === 'circle'){ masks.circles.pop(); }
-      else { masks.polygons.pop(); }
-    } else {
-      if (currentMode === 'circle'){
-        state[currentTool].circles.pop();
+    if (currentMode === 'points') {
+      if (!pendingAreaPoly || pendingAreaPoly.tool !== currentTool) {
+        startAreaPoly(currentTool, r, c);
       } else {
-        const s = state[currentTool]; const last = s.arr.pop(); if (last) s.set.delete(key(last.r,last.c));
+        addAreaPolyPoint(r, c);
       }
+      draw();
+      return;
     }
+
+    if (currentMode === 'rectangle') {
+      if (!pendingRectangle) {
+        startRectangle(currentTool, r, c);
+      } else {
+        updateRectangle(pendingRectangle, r, c);
+        commitRectangle();
+      }
+      return;
+    }
+
+    if (!pendingCircle) {
+      startCircle(currentTool, r, c);
+    } else {
+      commitCircle();
+    }
+  });
+
+  canvas.addEventListener('mousemove', event => {
+    const { x, y } = logicalFromClient(event.clientX, event.clientY);
+    hoverSnap = snapToGrid(x, y);
+
+    if (currentTool === 'erase') {
+      if (currentMode === 'circle' && pendingMaskCircle) {
+        updateCircleRadius(pendingMaskCircle, event.clientX, event.clientY);
+        draw();
+      }
+
+      if (currentMode === 'rectangle' && pendingMaskRectangle) {
+        updateRectangle(pendingMaskRectangle, hoverSnap.r, hoverSnap.c);
+        draw();
+      }
+
+      if (currentMode === 'points' && pendingMaskPoly) {
+        previewPolySnap = hoverSnap;
+        draw();
+      }
+
+      return;
+    }
+
+    if (currentTool === 'measure' && pendingMeasure) {
+      draw();
+      return;
+    }
+
+    if (currentMode === 'circle' && pendingCircle) {
+      updateCircleRadius(pendingCircle, event.clientX, event.clientY);
+      draw();
+      return;
+    }
+
+    if (currentMode === 'rectangle' && pendingRectangle) {
+      updateRectangle(pendingRectangle, hoverSnap.r, hoverSnap.c);
+      draw();
+      return;
+    }
+
+    if (currentTool !== 'erase' && currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'points' && pendingAreaPoly && pendingAreaPoly.tool === currentTool) {
+      previewPolySnap = hoverSnap;
+      draw();
+      return;
+    }
+
+    if (currentTool !== 'objective' && currentTool !== 'measure' && currentMode === 'points') {
+      draw();
+    }
+  });
+
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      cancelCurrentDraft();
+      draw();
+    }
+
+    if (event.key === 'Enter' && canFinishCurrentShape()) {
+      finishCurrentShape();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
     draw();
   });
 
-  document.getElementById('clear').addEventListener('click', () => {
+  for (const tool of TOOL_IDS) {
+    toolButtons[tool].addEventListener('click', () => setTool(tool));
+  }
+
+  for (const mode of MODE_IDS) {
+    modeButtons[mode].addEventListener('click', () => setMode(mode));
+  }
+
+  for (const boardPreset of BOARD_IDS) {
+    boardButtons[boardPreset].addEventListener('click', () => setBoardPreset(boardPreset));
+  }
+
+  finishMaskBtn.addEventListener('click', () => {
+    if (canFinishCurrentShape()) {
+      finishCurrentShape();
+    }
+  });
+  importMapBtn.addEventListener('click', () => {
+    importMapInput.click();
+  });
+  exportMapBtn.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(getSerializedMap(), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${sanitizeFilename(getMapName())}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+  saveImageBtn.addEventListener('click', () => {
+    draw();
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${sanitizeFilename(getMapName())}.png`;
+    link.click();
+  });
+  importMapInput.addEventListener('change', async event => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      loadMapData(JSON.parse(text));
+    } catch (error) {
+      console.error('Failed to import map:', error);
+      window.alert('Could not import that map file. Please choose a valid JSON export from this tool.');
+    } finally {
+      importMapInput.value = '';
+    }
+  });
+  toggleMeasureEraseBtn.addEventListener('click', () => {
+    if (currentTool !== 'measure') {
+      return;
+    }
+
+    measureMode = measureMode === 'add' ? 'erase' : 'add';
+    pendingMeasure = null;
+    updateHelp();
+    draw();
+  });
+  cancelDraftBtn.addEventListener('click', () => {
+    cancelCurrentDraft();
+    draw();
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (currentTool === 'objective') {
+      const last = objectives.arr.pop();
+      if (last) {
+        objectives.set.delete(key(last.r, last.c));
+      }
+      draw();
+      return;
+    }
+
+    if (currentTool === 'measure') {
+      measurements.pop();
+      draw();
+      return;
+    }
+
+    if (currentTool === 'erase') {
+      if (currentMode === 'points' && pendingMaskPoly) {
+        pendingMaskPoly.pts.pop();
+        if (pendingMaskPoly.pts.length === 0) {
+          cancelMaskPoly();
+        }
+        draw();
+        return;
+      }
+
+      if (currentMode === 'circle') {
+        if (pendingMaskCircle) {
+          pendingMaskCircle = null;
+          draw();
+          return;
+        }
+        masks.circles.pop();
+      } else if (currentMode === 'rectangle') {
+        if (pendingMaskRectangle) {
+          pendingMaskRectangle = null;
+          draw();
+          return;
+        }
+        masks.rectangles.pop();
+      } else {
+        masks.polygons.pop();
+      }
+      draw();
+      return;
+    }
+
+    if (currentMode === 'circle') {
+      if (pendingCircle) {
+        pendingCircle = null;
+        draw();
+        return;
+      }
+
+      state[currentTool].circles.pop();
+    } else if (currentMode === 'rectangle') {
+      if (pendingRectangle) {
+        pendingRectangle = null;
+        draw();
+        return;
+      }
+
+      state[currentTool].rectangles.pop();
+    } else {
+      if (pendingAreaPoly && pendingAreaPoly.tool === currentTool) {
+        pendingAreaPoly.pts.pop();
+        if (pendingAreaPoly.pts.length === 0) {
+          cancelAreaPoly();
+        }
+        draw();
+        return;
+      }
+
+      state[currentTool].polygons.pop();
+    }
+
+    draw();
+  });
+
+  clearBtn.addEventListener('click', () => {
     if (currentTool === 'objective') {
       objectives.arr.length = 0;
       objectives.set.clear();
@@ -643,62 +1801,28 @@
       measurements.length = 0;
       pendingMeasure = null;
     } else if (currentTool === 'erase') {
-      // Clearing while Erase tool is selected = just clear masks
-      masks.polygons.length = 0;
-      masks.circles.length  = 0;
+      clearMasks();
     } else if (currentMode === 'circle') {
-      // Clear circles for the current drawing tool
       state[currentTool].circles.length = 0;
-      // Version A: also clear all erase masks
-      masks.polygons.length = 0;
-      masks.circles.length  = 0;
+      clearMasks();
+    } else if (currentMode === 'rectangle') {
+      state[currentTool].rectangles.length = 0;
+      clearMasks();
     } else {
-      // Points mode: clear points for the current drawing tool
-      state[currentTool].arr.length = 0;
-      state[currentTool].set.clear();
-      // Version A: also clear all erase masks
-      masks.polygons.length = 0;
-      masks.circles.length  = 0;
+      state[currentTool].polygons.length = 0;
+      clearMasks();
     }
 
-    // reset any in-progress shapes
-    pendingCircle = null;
-    pendingMaskCircle = null;
-    pendingMaskPoly = null;
-    previewPolySnap = null;
-
+    resetPendingState();
     draw();
   });
 
-  function updateHelp(){
-    if (currentTool === 'objective'){
-      helpEl.textContent = 'Objective: Click intersections to toggle a dark-green objective marker.';
-    } else if (currentTool === 'measure'){
-      helpEl.textContent = 'Measure: Click a start point, then an end point. Distance shows in inches (1 grid = 1").';
-    } else if (currentTool === 'erase'){
-      helpEl.textContent = (currentMode === 'circle')
-        ? 'Erase + Circle: Click center, move to preview, click again to cut a circular hole out of fills. Esc cancels.'
-        : 'Erase + Points: Click to add vertices; Enter or “Finish Mask” to cut a polygon hole. Esc cancels.';
-    } else if (currentMode === 'circle'){
-      helpEl.textContent = 'Draw Circle: Click center, move to preview, click again to add a filled circle.';
-    } else {
-      helpEl.textContent = 'Points mode: Click intersections to toggle points; lines connect in placement order; 3+ fills.';
-    }
-  }
-
-  // Init
   resizeCanvas();
   updateHelp();
   draw();
 
-  // Optional export
-  window.exportAll = () => ({
-    green: { points: state.green.arr.slice(), circles: state.green.circles.slice() },
-    red:   { points: state.red.arr.slice(),   circles: state.red.circles.slice() },
-    masks: { polygons: masks.polygons.map(p=>p.slice()), circles: masks.circles.slice() },
-    objectives: objectives.arr.slice(),
-    measurements: measurements.slice()
-  });
+  window.exportAll = () => getSerializedMap();
+  window.importAll = data => loadMapData(data);
 </script>
 </body>
 </html>

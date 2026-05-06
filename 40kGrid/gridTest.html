@@ -282,6 +282,14 @@
 
   const off = document.createElement('canvas');
   const offCtx = off.getContext('2d');
+  const layer = document.createElement('canvas');
+  const layerCtx = layer.getContext('2d');
+  const outline = document.createElement('canvas');
+  const outlineCtx = outline.getContext('2d');
+  const greenMask = document.createElement('canvas');
+  const greenMaskCtx = greenMask.getContext('2d');
+  const redMask = document.createElement('canvas');
+  const redMaskCtx = redMask.getContext('2d');
 
   const toolButtons = {
     green: document.getElementById('pickGreen'),
@@ -323,10 +331,10 @@
     green: { polygons: [], circles: [], rectangles: [] },
     red: { polygons: [], circles: [], rectangles: [] }
   };
+  const areaOps = [];
 
   const objectives = { arr: [], set: new Set() };
   const measurements = [];
-  const masks = { polygons: [], circles: [], rectangles: [] };
 
   let pendingCircle = null;
   let pendingAreaPoly = null;
@@ -406,6 +414,249 @@
     targetCtx.rect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
   }
 
+  function toCanvasPoint(point) {
+    return toXY(point.r, point.c);
+  }
+
+  function clonePolygon(points) {
+    return points.map(point => ({ r: point.r, c: point.c }));
+  }
+
+  function cloneCircle(circle) {
+    return { r: circle.r, c: circle.c, radiusPx: circle.radiusPx };
+  }
+
+  function cloneRectangle(rect) {
+    return { r1: rect.r1, c1: rect.c1, r2: rect.r2, c2: rect.c2 };
+  }
+
+  function cloneAreaOp(op) {
+    if (!op || (op.kind !== 'add' && op.kind !== 'erase')) {
+      return null;
+    }
+
+    if (!['points', 'circle', 'rectangle'].includes(op.shapeType)) {
+      return null;
+    }
+
+    let data = null;
+    if (op.shapeType === 'points') {
+      data = clonePoints(op.data);
+      if (data.length < 3) return null;
+    } else if (op.shapeType === 'circle') {
+      data = cloneCircle(op.data);
+      if (!Number.isFinite(data.radiusPx) || data.radiusPx <= 0) return null;
+    } else {
+      data = cloneRectangle(op.data);
+    }
+
+    if (op.kind === 'add') {
+      if (!['green', 'red'].includes(op.color)) {
+        return null;
+      }
+      return { kind: 'add', color: op.color, shapeType: op.shapeType, data };
+    }
+
+    return { kind: 'erase', shapeType: op.shapeType, data };
+  }
+
+  function getRectangleCorners(rect) {
+    return [
+      { r: rect.r1, c: rect.c1 },
+      { r: rect.r1, c: rect.c2 },
+      { r: rect.r2, c: rect.c2 },
+      { r: rect.r2, c: rect.c1 }
+    ];
+  }
+
+  function pointInCircle(point, circle) {
+    const center = toXY(circle.r, circle.c);
+    return Math.hypot(point.x - center.x, point.y - center.y) <= circle.radiusPx;
+  }
+
+  function pointInRect(point, rect) {
+    const topLeft = toXY(rect.r1, rect.c1);
+    const bottomRight = toXY(rect.r2, rect.c2);
+    return (
+      point.x >= topLeft.x &&
+      point.x <= bottomRight.x &&
+      point.y >= topLeft.y &&
+      point.y <= bottomRight.y
+    );
+  }
+
+  function pointInPolygon(point, polygon) {
+    const points = polygon.map(toCanvasPoint);
+    let inside = false;
+
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const xi = points[i].x;
+      const yi = points[i].y;
+      const xj = points[j].x;
+      const yj = points[j].y;
+
+      const intersects =
+        ((yi > point.y) !== (yj > point.y)) &&
+        point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+
+      if (intersects) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  }
+
+  function segmentsIntersect(a, b, c, d) {
+    const orientation = (p, q, r) => {
+      const value = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+      if (Math.abs(value) < 0.001) return 0;
+      return value > 0 ? 1 : 2;
+    };
+
+    const onSegment = (p, q, r) =>
+      q.x <= Math.max(p.x, r.x) + 0.001 &&
+      q.x + 0.001 >= Math.min(p.x, r.x) &&
+      q.y <= Math.max(p.y, r.y) + 0.001 &&
+      q.y + 0.001 >= Math.min(p.y, r.y);
+
+    const o1 = orientation(a, b, c);
+    const o2 = orientation(a, b, d);
+    const o3 = orientation(c, d, a);
+    const o4 = orientation(c, d, b);
+
+    if (o1 !== o2 && o3 !== o4) {
+      return true;
+    }
+
+    if (o1 === 0 && onSegment(a, c, b)) return true;
+    if (o2 === 0 && onSegment(a, d, b)) return true;
+    if (o3 === 0 && onSegment(c, a, d)) return true;
+    if (o4 === 0 && onSegment(c, b, d)) return true;
+    return false;
+  }
+
+  function getPolygonEdges(polygon) {
+    const points = polygon.map(toCanvasPoint);
+    const edges = [];
+
+    for (let i = 0; i < points.length; i++) {
+      edges.push([points[i], points[(i + 1) % points.length]]);
+    }
+
+    return edges;
+  }
+
+  function getRectEdges(rect) {
+    const corners = getRectangleCorners(rect).map(toCanvasPoint);
+    return [
+      [corners[0], corners[1]],
+      [corners[1], corners[2]],
+      [corners[2], corners[3]],
+      [corners[3], corners[0]]
+    ];
+  }
+
+  function segmentIntersectsCircle(a, b, circle) {
+    const center = toXY(circle.r, circle.c);
+    return distanceToSegment(center.x, center.y, a.x, a.y, b.x, b.y) <= circle.radiusPx;
+  }
+
+  function polygonsIntersect(a, b) {
+    for (const point of a) {
+      if (pointInPolygon(toCanvasPoint(point), b)) {
+        return true;
+      }
+    }
+
+    for (const point of b) {
+      if (pointInPolygon(toCanvasPoint(point), a)) {
+        return true;
+      }
+    }
+
+    const aEdges = getPolygonEdges(a);
+    const bEdges = getPolygonEdges(b);
+    for (const [a1, a2] of aEdges) {
+      for (const [b1, b2] of bEdges) {
+        if (segmentsIntersect(a1, a2, b1, b2)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function polygonIntersectsCircle(polygon, circle) {
+    const center = toXY(circle.r, circle.c);
+
+    if (pointInPolygon(center, polygon)) {
+      return true;
+    }
+
+    for (const point of polygon) {
+      if (pointInCircle(toCanvasPoint(point), circle)) {
+        return true;
+      }
+    }
+
+    for (const [a, b] of getPolygonEdges(polygon)) {
+      if (segmentIntersectsCircle(a, b, circle)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function polygonIntersectsRect(polygon, rect) {
+    const rectPoints = getRectangleCorners(rect);
+
+    for (const point of polygon) {
+      if (pointInRect(toCanvasPoint(point), rect)) {
+        return true;
+      }
+    }
+
+    for (const point of rectPoints) {
+      if (pointInPolygon(toCanvasPoint(point), polygon)) {
+        return true;
+      }
+    }
+
+    const polygonEdges = getPolygonEdges(polygon);
+    const rectEdges = getRectEdges(rect);
+    for (const [a1, a2] of polygonEdges) {
+      for (const [b1, b2] of rectEdges) {
+        if (segmentsIntersect(a1, a2, b1, b2)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function circlesIntersect(a, b) {
+    const centerA = toXY(a.r, a.c);
+    const centerB = toXY(b.r, b.c);
+    return Math.hypot(centerA.x - centerB.x, centerA.y - centerB.y) <= a.radiusPx + b.radiusPx;
+  }
+
+  function rectsIntersect(a, b) {
+    return !(a.c2 < b.c1 || a.c1 > b.c2 || a.r2 < b.r1 || a.r1 > b.r2);
+  }
+
+  function rectIntersectsCircle(rect, circle) {
+    const topLeft = toXY(rect.r1, rect.c1);
+    const bottomRight = toXY(rect.r2, rect.c2);
+    const center = toXY(circle.r, circle.c);
+    const closestX = Math.max(topLeft.x, Math.min(center.x, bottomRight.x));
+    const closestY = Math.max(topLeft.y, Math.min(center.y, bottomRight.y));
+    return Math.hypot(center.x - closestX, center.y - closestY) <= circle.radiusPx;
+  }
+
   function logicalFromClient(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const logicalWidth = getLogicalWidth();
@@ -467,12 +718,6 @@
     for (const [value, button] of Object.entries(buttons)) {
       button.setAttribute('aria-pressed', String(value === selectedValue));
     }
-  }
-
-  function clearMasks() {
-    masks.polygons.length = 0;
-    masks.circles.length = 0;
-    masks.rectangles.length = 0;
   }
 
   function resetMaskDraft() {
@@ -550,11 +795,205 @@
       : [];
   }
 
+  function rebuildStateFromOps() {
+    state.green.polygons.length = 0;
+    state.green.circles.length = 0;
+    state.green.rectangles.length = 0;
+    state.red.polygons.length = 0;
+    state.red.circles.length = 0;
+    state.red.rectangles.length = 0;
+
+    for (const op of areaOps) {
+      if (op.kind !== 'add') {
+        continue;
+      }
+
+      if (op.shapeType === 'points') {
+        state[op.color].polygons.push(clonePolygon(op.data));
+      } else if (op.shapeType === 'circle') {
+        state[op.color].circles.push(cloneCircle(op.data));
+      } else if (op.shapeType === 'rectangle') {
+        state[op.color].rectangles.push(cloneRectangle(op.data));
+      }
+    }
+  }
+
+  function addAreaOp(op) {
+    const cloned = cloneAreaOp(op);
+    if (!cloned) {
+      return;
+    }
+
+    areaOps.push(cloned);
+    rebuildStateFromOps();
+  }
+
+  function clearAreaOps(filterFn) {
+    for (let i = areaOps.length - 1; i >= 0; i--) {
+      if (filterFn(areaOps[i])) {
+        areaOps.splice(i, 1);
+      }
+    }
+
+    rebuildStateFromOps();
+  }
+
+  function undoAreaOp(filterFn) {
+    for (let i = areaOps.length - 1; i >= 0; i--) {
+      if (filterFn(areaOps[i])) {
+        areaOps.splice(i, 1);
+        rebuildStateFromOps();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function getShapeTypeForMode(mode) {
+    if (mode === 'circle') return 'circle';
+    if (mode === 'rectangle') return 'rectangle';
+    return 'points';
+  }
+
+  function drawStoredShapePath(targetCtx, shapeType, data) {
+    if (shapeType === 'points') {
+      drawPath(targetCtx, data);
+      return;
+    }
+
+    if (shapeType === 'circle') {
+      const center = toXY(data.r, data.c);
+      targetCtx.beginPath();
+      targetCtx.arc(center.x, center.y, data.radiusPx, 0, Math.PI * 2);
+      return;
+    }
+
+    drawRectPath(targetCtx, { start: { r: data.r1, c: data.c1 }, end: { r: data.r2, c: data.c2 } });
+  }
+
+  function clearLogicalContext(targetCtx, canvasEl) {
+    targetCtx.save();
+    targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+    targetCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    targetCtx.restore();
+  }
+
+  function replayAreaOpsToMask(targetCtx, color) {
+    clearLogicalContext(targetCtx, targetCtx.canvas);
+
+    for (const op of areaOps) {
+      if (op.kind === 'add' && op.color !== color) {
+        continue;
+      }
+
+      targetCtx.save();
+      targetCtx.globalCompositeOperation = op.kind === 'erase' ? 'destination-out' : 'source-over';
+      targetCtx.fillStyle = '#fff';
+      drawStoredShapePath(targetCtx, op.shapeType, op.data);
+      targetCtx.fill();
+      targetCtx.restore();
+    }
+  }
+
+  function compositeMaskToLayer(maskCanvas, color) {
+    const logicalWidth = getLogicalWidth();
+    const logicalHeight = getLogicalHeight();
+    const xOffset = logicalWidth / outline.width;
+    const yOffset = logicalHeight / outline.height;
+
+    clearLogicalContext(outlineCtx, outline);
+    outlineCtx.save();
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) {
+          continue;
+        }
+
+        outlineCtx.drawImage(
+          maskCanvas,
+          dx * xOffset,
+          dy * yOffset,
+          logicalWidth,
+          logicalHeight
+        );
+      }
+    }
+    outlineCtx.globalCompositeOperation = 'source-in';
+    outlineCtx.fillStyle = COLORS[color].stroke;
+    outlineCtx.fillRect(0, 0, logicalWidth, logicalHeight);
+    outlineCtx.globalCompositeOperation = 'destination-out';
+    outlineCtx.drawImage(maskCanvas, 0, 0, logicalWidth, logicalHeight);
+    outlineCtx.restore();
+
+    clearLogicalContext(layerCtx, layer);
+    layerCtx.save();
+    layerCtx.fillStyle = COLORS[color].fill;
+    layerCtx.fillRect(0, 0, logicalWidth, logicalHeight);
+    layerCtx.globalCompositeOperation = 'destination-in';
+    layerCtx.drawImage(maskCanvas, 0, 0, logicalWidth, logicalHeight);
+    layerCtx.restore();
+
+    offCtx.drawImage(outline, 0, 0, logicalWidth, logicalHeight);
+    offCtx.drawImage(layer, 0, 0, logicalWidth, logicalHeight);
+  }
+
+  function loadLegacyAreaOps(data) {
+    areaOps.length = 0;
+    rebuildStateFromOps();
+
+    const pushLegacyAdds = (color, shapeType, shapes) => {
+      for (const shape of shapes) {
+        addAreaOp({ kind: 'add', color, shapeType, data: shape });
+      }
+    };
+
+    const legacyGreenPolygons = clonePolygonList(data?.green?.polygons);
+    pushLegacyAdds('green', 'points', legacyGreenPolygons);
+    if (!legacyGreenPolygons.length && Array.isArray(data?.green?.points)) {
+      const legacyGreen = clonePoints(data.green.points);
+      if (legacyGreen.length >= 3) addAreaOp({ kind: 'add', color: 'green', shapeType: 'points', data: legacyGreen });
+    }
+
+    const legacyRedPolygons = clonePolygonList(data?.red?.polygons);
+    pushLegacyAdds('red', 'points', legacyRedPolygons);
+    if (!legacyRedPolygons.length && Array.isArray(data?.red?.points)) {
+      const legacyRed = clonePoints(data.red.points);
+      if (legacyRed.length >= 3) addAreaOp({ kind: 'add', color: 'red', shapeType: 'points', data: legacyRed });
+    }
+
+    pushLegacyAdds('green', 'circle', cloneCircles(data?.green?.circles));
+    pushLegacyAdds('red', 'circle', cloneCircles(data?.red?.circles));
+    pushLegacyAdds('green', 'rectangle', cloneRectangles(data?.green?.rectangles));
+    pushLegacyAdds('red', 'rectangle', cloneRectangles(data?.red?.rectangles));
+
+    for (const polygon of clonePolygonList(data?.masks?.polygons)) {
+      addAreaOp({ kind: 'erase', shapeType: 'points', data: polygon });
+    }
+
+    for (const circle of cloneCircles(data?.masks?.circles)) {
+      addAreaOp({ kind: 'erase', shapeType: 'circle', data: circle });
+    }
+
+    for (const rect of cloneRectangles(data?.masks?.rectangles)) {
+      addAreaOp({ kind: 'erase', shapeType: 'rectangle', data: rect });
+    }
+  }
+
+  function countAreaOps(kind, color, shapeType) {
+    return areaOps.filter(op =>
+      op.kind === kind &&
+      (color ? op.color === color : true) &&
+      op.shapeType === shapeType
+    ).length;
+  }
+
   function getSerializedMap() {
     return {
-      version: 1,
+      version: 3,
       name: getMapName(),
       board: { ...getBoardConfig(), preset: currentBoardPreset },
+      operations: areaOps.map(cloneAreaOp).filter(Boolean),
       green: {
         polygons: state.green.polygons.map(points => points.slice()),
         circles: state.green.circles.slice(),
@@ -566,9 +1005,9 @@
         rectangles: state.red.rectangles.slice()
       },
       masks: {
-        polygons: masks.polygons.map(points => points.slice()),
-        circles: masks.circles.slice(),
-        rectangles: masks.rectangles.slice()
+        polygons: [],
+        circles: [],
+        rectangles: []
       },
       objectives: objectives.arr.slice(),
       measurements: measurements.slice()
@@ -591,25 +1030,18 @@
     currentBoardPreset = boardPreset;
     setPressedState(boardButtons, boardPreset);
 
-    state.green.polygons = clonePolygonList(data?.green?.polygons);
-    if (!state.green.polygons.length && Array.isArray(data?.green?.points)) {
-      const legacyGreen = clonePoints(data.green.points);
-      if (legacyGreen.length >= 3) state.green.polygons = [legacyGreen];
+    areaOps.length = 0;
+    if (Array.isArray(data?.operations)) {
+      for (const op of data.operations) {
+        const cloned = cloneAreaOp(op);
+        if (cloned) {
+          areaOps.push(cloned);
+        }
+      }
+      rebuildStateFromOps();
+    } else {
+      loadLegacyAreaOps(data);
     }
-
-    state.red.polygons = clonePolygonList(data?.red?.polygons);
-    if (!state.red.polygons.length && Array.isArray(data?.red?.points)) {
-      const legacyRed = clonePoints(data.red.points);
-      if (legacyRed.length >= 3) state.red.polygons = [legacyRed];
-    }
-    state.green.circles = cloneCircles(data?.green?.circles);
-    state.red.circles = cloneCircles(data?.red?.circles);
-    state.green.rectangles = cloneRectangles(data?.green?.rectangles);
-    state.red.rectangles = cloneRectangles(data?.red?.rectangles);
-
-    masks.polygons = clonePolygonList(data?.masks?.polygons);
-    masks.circles = cloneCircles(data?.masks?.circles);
-    masks.rectangles = cloneRectangles(data?.masks?.rectangles);
 
     objectives.arr = clonePoints(data?.objectives);
     objectives.set = new Set(objectives.arr.map(point => key(point.r, point.c)));
@@ -647,6 +1079,26 @@
     off.height = Math.round(cssHeight * dpr);
     offCtx.setTransform(1, 0, 0, 1, 0, 0);
     offCtx.scale(off.width / logicalWidth, off.height / logicalHeight);
+
+    layer.width = Math.round(cssWidth * dpr);
+    layer.height = Math.round(cssHeight * dpr);
+    layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+    layerCtx.scale(layer.width / logicalWidth, layer.height / logicalHeight);
+
+    outline.width = Math.round(cssWidth * dpr);
+    outline.height = Math.round(cssHeight * dpr);
+    outlineCtx.setTransform(1, 0, 0, 1, 0, 0);
+    outlineCtx.scale(outline.width / logicalWidth, outline.height / logicalHeight);
+
+    greenMask.width = Math.round(cssWidth * dpr);
+    greenMask.height = Math.round(cssHeight * dpr);
+    greenMaskCtx.setTransform(1, 0, 0, 1, 0, 0);
+    greenMaskCtx.scale(greenMask.width / logicalWidth, greenMask.height / logicalHeight);
+
+    redMask.width = Math.round(cssWidth * dpr);
+    redMask.height = Math.round(cssHeight * dpr);
+    redMaskCtx.setTransform(1, 0, 0, 1, 0, 0);
+    redMaskCtx.scale(redMask.width / logicalWidth, redMask.height / logicalHeight);
   }
 
   function addPolygon(color, points) {
@@ -654,7 +1106,7 @@
       return;
     }
 
-    state[color].polygons.push(points.slice());
+    addAreaOp({ kind: 'add', color, shapeType: 'points', data: points.slice() });
   }
 
   function startAreaPoly(tool, r, c) {
@@ -719,7 +1171,7 @@
 
     const { tool, center, radiusPx } = pendingCircle;
     if (radiusPx > 0) {
-      state[tool].circles.push({ r: center.r, c: center.c, radiusPx });
+      addAreaOp({ kind: 'add', color: tool, shapeType: 'circle', data: { r: center.r, c: center.c, radiusPx } });
     }
 
     pendingCircle = null;
@@ -747,7 +1199,7 @@
       return;
     }
 
-    state[pendingRectangle.tool].rectangles.push(normalizeRect(pendingRectangle));
+    addAreaOp({ kind: 'add', color: pendingRectangle.tool, shapeType: 'rectangle', data: normalizeRect(pendingRectangle) });
     pendingRectangle = null;
     draw();
   }
@@ -791,7 +1243,7 @@
 
     const { center, radiusPx } = pendingMaskCircle;
     if (radiusPx > 0) {
-      masks.circles.push({ r: center.r, c: center.c, radiusPx });
+      addAreaOp({ kind: 'erase', shapeType: 'circle', data: { r: center.r, c: center.c, radiusPx } });
     }
 
     pendingMaskCircle = null;
@@ -810,7 +1262,7 @@
       return;
     }
 
-    masks.rectangles.push(normalizeRect(pendingMaskRectangle));
+    addAreaOp({ kind: 'erase', shapeType: 'rectangle', data: normalizeRect(pendingMaskRectangle) });
     pendingMaskRectangle = null;
     draw();
   }
@@ -830,7 +1282,7 @@
 
   function finishMaskPoly() {
     if (pendingMaskPoly && pendingMaskPoly.pts.length >= 3) {
-      masks.polygons.push(pendingMaskPoly.pts.slice());
+      addAreaOp({ kind: 'erase', shapeType: 'points', data: pendingMaskPoly.pts.slice() });
     }
 
     pendingMaskPoly = null;
@@ -1042,81 +1494,6 @@
     targetCtx.closePath();
   }
 
-  function fillPolygonLayer(targetCtx, color) {
-    for (const polygon of state[color].polygons) {
-      if (polygon.length < 3) {
-        continue;
-      }
-
-      targetCtx.save();
-      drawPath(targetCtx, polygon);
-      targetCtx.fillStyle = COLORS[color].fill;
-      targetCtx.fill();
-      targetCtx.restore();
-    }
-  }
-
-  function strokePolygonLayer(targetCtx, color) {
-    for (const polygon of state[color].polygons) {
-      if (polygon.length < 2) {
-        continue;
-      }
-
-      targetCtx.save();
-      drawPath(targetCtx, polygon, polygon.length >= 3);
-      targetCtx.lineWidth = 2;
-      targetCtx.strokeStyle = COLORS[color].stroke;
-      targetCtx.stroke();
-      targetCtx.restore();
-    }
-  }
-
-  function fillCircleLayer(targetCtx, color) {
-    for (const circle of state[color].circles) {
-      const { x, y } = toXY(circle.r, circle.c);
-      targetCtx.save();
-      targetCtx.beginPath();
-      targetCtx.arc(x, y, circle.radiusPx, 0, Math.PI * 2);
-      targetCtx.fillStyle = COLORS[color].fill;
-      targetCtx.fill();
-      targetCtx.restore();
-    }
-  }
-
-  function strokeCircleLayer(targetCtx, color) {
-    for (const circle of state[color].circles) {
-      const { x, y } = toXY(circle.r, circle.c);
-      targetCtx.save();
-      targetCtx.beginPath();
-      targetCtx.arc(x, y, circle.radiusPx, 0, Math.PI * 2);
-      targetCtx.lineWidth = 2;
-      targetCtx.strokeStyle = COLORS[color].stroke;
-      targetCtx.stroke();
-      targetCtx.restore();
-    }
-  }
-
-  function fillRectangleLayer(targetCtx, color) {
-    for (const rect of state[color].rectangles) {
-      targetCtx.save();
-      drawRectPath(targetCtx, { start: { r: rect.r1, c: rect.c1 }, end: { r: rect.r2, c: rect.c2 } });
-      targetCtx.fillStyle = COLORS[color].fill;
-      targetCtx.fill();
-      targetCtx.restore();
-    }
-  }
-
-  function strokeRectangleLayer(targetCtx, color) {
-    for (const rect of state[color].rectangles) {
-      targetCtx.save();
-      drawRectPath(targetCtx, { start: { r: rect.r1, c: rect.c1 }, end: { r: rect.r2, c: rect.c2 } });
-      targetCtx.lineWidth = 2;
-      targetCtx.strokeStyle = COLORS[color].stroke;
-      targetCtx.stroke();
-      targetCtx.restore();
-    }
-  }
-
   function drawObjectives() {
     const radius = CELL;
 
@@ -1268,18 +1645,22 @@
 
   function drawStatus() {
     const board = getBoardConfig();
-    const greenPolygons = state.green.polygons.length;
-    const redPolygons = state.red.polygons.length;
-    const greenCircles = state.green.circles.length;
-    const redCircles = state.red.circles.length;
-    const greenRectangles = state.green.rectangles.length;
-    const redRectangles = state.red.rectangles.length;
+    const greenPolygons = countAreaOps('add', 'green', 'points');
+    const redPolygons = countAreaOps('add', 'red', 'points');
+    const greenCircles = countAreaOps('add', 'green', 'circle');
+    const redCircles = countAreaOps('add', 'red', 'circle');
+    const greenRectangles = countAreaOps('add', 'green', 'rectangle');
+    const redRectangles = countAreaOps('add', 'red', 'rectangle');
+    const eraseCount =
+      countAreaOps('erase', null, 'points') +
+      countAreaOps('erase', null, 'circle') +
+      countAreaOps('erase', null, 'rectangle');
 
     statusEl.textContent =
       `Board: ${board.label} | Tool: ${currentTool} | Mode: ${currentMode} | ` +
       `G poly:${greenPolygons} G circ:${greenCircles} G rect:${greenRectangles} | ` +
       `R poly:${redPolygons} R circ:${redCircles} R rect:${redRectangles} | ` +
-      `Masks: P${masks.polygons.length}/C${masks.circles.length}/R${masks.rectangles.length} | ` +
+      `Erase ops: ${eraseCount} | ` +
       `Objectives: ${objectives.arr.length} | Measures: ${measurements.length}`;
 
     syncDraftControls();
@@ -1300,10 +1681,10 @@
 
     if (currentTool === 'erase') {
       helpEl.textContent = currentMode === 'circle'
-        ? 'Erase Area + Circle: click once for the center, move to size it, then click again to cut the hole.'
+        ? 'Erase Area + Circle: click once for the center, move to size it, then click again to delete overlapping shapes.'
         : currentMode === 'rectangle'
-          ? 'Erase Area + Rectangle: click once for the first corner, move to size it, then click again to cut the rectangle.'
-          : 'Erase Area + Polygon: click to place corners. Press Enter or Finish Shape when the outline is complete.';
+          ? 'Erase Area + Rectangle: click once for the first corner, move to size it, then click again to delete overlapping shapes.'
+          : 'Erase Area + Polygon: click to place corners. Press Enter or Finish Shape to delete overlapping shapes.';
       return;
     }
 
@@ -1336,48 +1717,13 @@
     ctx.fillRect(0, 0, logicalWidth, logicalHeight);
     ctx.restore();
 
-    offCtx.save();
-    offCtx.setTransform(1, 0, 0, 1, 0, 0);
-    offCtx.clearRect(0, 0, off.width, off.height);
-    offCtx.restore();
-    fillPolygonLayer(offCtx, 'green');
-    fillPolygonLayer(offCtx, 'red');
-    fillCircleLayer(offCtx, 'green');
-    fillCircleLayer(offCtx, 'red');
-    fillRectangleLayer(offCtx, 'green');
-    fillRectangleLayer(offCtx, 'red');
-
-    offCtx.save();
-    offCtx.globalCompositeOperation = 'destination-out';
-    offCtx.fillStyle = '#000';
-
-    for (const polygon of masks.polygons) {
-      drawPath(offCtx, polygon);
-      offCtx.fill();
-    }
-
-    for (const circle of masks.circles) {
-      const center = toXY(circle.r, circle.c);
-      offCtx.beginPath();
-      offCtx.arc(center.x, center.y, circle.radiusPx, 0, Math.PI * 2);
-      offCtx.fill();
-    }
-
-    for (const rect of masks.rectangles) {
-      drawRectPath(offCtx, { start: { r: rect.r1, c: rect.c1 }, end: { r: rect.r2, c: rect.c2 } });
-      offCtx.fill();
-    }
-
-    offCtx.restore();
+    clearLogicalContext(offCtx, off);
+    replayAreaOpsToMask(greenMaskCtx, 'green');
+    replayAreaOpsToMask(redMaskCtx, 'red');
+    compositeMaskToLayer(greenMask, 'green');
+    compositeMaskToLayer(redMask, 'red');
 
     ctx.drawImage(off, 0, 0, logicalWidth, logicalHeight);
-
-    strokePolygonLayer(ctx, 'green');
-    strokePolygonLayer(ctx, 'red');
-    strokeCircleLayer(ctx, 'green');
-    strokeCircleLayer(ctx, 'red');
-    strokeRectangleLayer(ctx, 'green');
-    strokeRectangleLayer(ctx, 'red');
 
     ctx.save();
     ctx.lineWidth = 1;
@@ -1746,17 +2092,15 @@
           draw();
           return;
         }
-        masks.circles.pop();
       } else if (currentMode === 'rectangle') {
         if (pendingMaskRectangle) {
           pendingMaskRectangle = null;
           draw();
           return;
         }
-        masks.rectangles.pop();
-      } else {
-        masks.polygons.pop();
       }
+
+      undoAreaOp(op => op.kind === 'erase' && op.shapeType === getShapeTypeForMode(currentMode));
       draw();
       return;
     }
@@ -1768,7 +2112,7 @@
         return;
       }
 
-      state[currentTool].circles.pop();
+      undoAreaOp(op => op.kind === 'add' && op.color === currentTool && op.shapeType === 'circle');
     } else if (currentMode === 'rectangle') {
       if (pendingRectangle) {
         pendingRectangle = null;
@@ -1776,7 +2120,7 @@
         return;
       }
 
-      state[currentTool].rectangles.pop();
+      undoAreaOp(op => op.kind === 'add' && op.color === currentTool && op.shapeType === 'rectangle');
     } else {
       if (pendingAreaPoly && pendingAreaPoly.tool === currentTool) {
         pendingAreaPoly.pts.pop();
@@ -1787,7 +2131,7 @@
         return;
       }
 
-      state[currentTool].polygons.pop();
+      undoAreaOp(op => op.kind === 'add' && op.color === currentTool && op.shapeType === 'points');
     }
 
     draw();
@@ -1801,16 +2145,13 @@
       measurements.length = 0;
       pendingMeasure = null;
     } else if (currentTool === 'erase') {
-      clearMasks();
+      clearAreaOps(op => op.kind === 'erase');
     } else if (currentMode === 'circle') {
-      state[currentTool].circles.length = 0;
-      clearMasks();
+      clearAreaOps(op => op.kind === 'add' && op.color === currentTool && op.shapeType === 'circle');
     } else if (currentMode === 'rectangle') {
-      state[currentTool].rectangles.length = 0;
-      clearMasks();
+      clearAreaOps(op => op.kind === 'add' && op.color === currentTool && op.shapeType === 'rectangle');
     } else {
-      state[currentTool].polygons.length = 0;
-      clearMasks();
+      clearAreaOps(op => op.kind === 'add' && op.color === currentTool && op.shapeType === 'points');
     }
 
     resetPendingState();

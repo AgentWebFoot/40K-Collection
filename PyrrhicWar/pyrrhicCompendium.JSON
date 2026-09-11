@@ -1,0 +1,135 @@
+{
+  "classAbilities": [],
+  "weapons": [],
+  "armors": [],
+  "shields": [],
+  "equipmentProperties": [],
+  "grid": [
+    {
+      "title": "Test",
+      "name": "Test",
+      "description": "# Test 2\nWhile fighting on this tile or an adjacent tile any unit with deadly demise gets a plus to the roll equal to the battle round (This means on battle round 5 the unit is guaranteed to deadly demise), additionally increasing the deadly demise radius by 6”.\n\n\n- Hello\n- World\n| Hello | World |\n| 1 | 0 |\n\n<Battle Traits>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+      "value": "",
+      "symbol": "",
+      "faction": "",
+      "restriction": ""
+    },
+    {
+      "title": "Test 2",
+      "name": "Test 2",
+      "description": "# Test 2\nWhile fighting on this tile or an adjacent tile any unit with deadly demise gets a plus to the roll equal to the battle round (This means on battle round 5 the unit is guaranteed to deadly demise), additionally increasing the deadly demise radius by 6”.\n\n\n\n\n- Hello\n- World\n| Hello | World |\n| 1 | 0 |\n\n\n<Battle Traits>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+      "value": "",
+      "symbol": "",
+      "faction": "",
+      "restriction": ""
+    },
+    {
+      "title": "Test 3",
+      "name": "Test 3",
+      "description": "\n# Test 2\nWhile fighting on this tile or an adjacent tile any unit with deadly demise gets a plus to the roll equal to the battle round (This means on battle round 5 the unit is guaranteed to deadly demise), additionally increasing the deadly demise radius by 6”.\n\n\n\n\n- Hello\n- World\n| Hello | World |\n| 1 | 0 |\n\n\n<Battle Traits>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+      "value": "",
+      "symbol": "",
+      "faction": "",
+      "restriction": ""
+    }
+  ],
+  "loreSections": [
+    {
+      "title": "Start Here",
+      "entries": [
+        {
+          "type": "lore",
+          "title": "Test",
+          "content": "# Test\n\t"
+        }
+      ]
+    }
+  ],
+  "customSections": [
+    {
+      "title": "Battle Honors",
+      "type": "lore",
+      "sections": [
+        {
+          "title": "Battle Traits",
+          "entries": [
+            {
+              "title": "Infantry",
+              "content": "# Infantry\n| d6 | Ability | Effects |\n| 1 | Territorial | Each time this unit makes an attack that targets a unit that is within range of an objective marker, re-roll a Wound roll of 1. |\n| 2 | Footsloggers | The move characteristic of models in this unit are increased by 1”. |\n| 3 | Fortune Favored | Models in this unit have a 6+ invulnerable save, if this unit already has a Invulnerable save improve that save by 1 to a max of 5+. |\n"
+            },
+            {
+              "title": "Mounted",
+              "content": "# Mounted\n\t"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tabOrder": [
+    "lore",
+    "custom:Battle Honors",
+    "classes",
+    "equipment",
+    "conditions"
+  ],
+  "builtInTabs": {
+    "lore": {
+      "label": "General",
+      "visible": true
+    },
+    "grid": {
+      "label": "Buildings/POI",
+      "visible": true
+    }
+  },
+  "classPageLabels": {
+    "groupLabels": {},
+    "classLabels": {}
+  },
+  "classPageStructure": {
+    "groups": []
+  },
+  "equipmentPageLabels": {
+    "sectionLabels": {},
+    "subsectionLabels": {}
+  },
+  "gridSchema": [
+    {
+      "key": "name",
+      "label": "Name",
+      "type": "text",
+      "isTitle": true
+    },
+    {
+      "key": "description",
+      "label": "Description",
+      "type": "paragraph",
+      "isTitle": false
+    },
+    {
+      "key": "value",
+      "label": "Value",
+      "type": "text",
+      "isTitle": false
+    },
+    {
+      "key": "symbol",
+      "label": "Symbol",
+      "type": "text",
+      "isTitle": false
+    },
+    {
+      "key": "faction",
+      "label": "Faction",
+      "type": "text",
+      "isTitle": false
+    },
+    {
+      "key": "restriction",
+      "label": "Restriction",
+      "type": "text",
+      "isTitle": false
+    }
+  ]
+}

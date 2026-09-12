@@ -1,0 +1,42 @@
+:root { font-family: 'Trebuchet MS', sans-serif; color: #f4e7d7; background: #160d0c; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.app { height: 100dvh; display: flex; flex-direction: column; }
+header { padding: 16px 22px; border-bottom: 1px solid #76503c; background: #241312; }
+h1 { font: 22px Georgia, serif; margin: 0 0 12px; color: #d6aa72; }
+form { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+label { display: grid; gap: 5px; font-size: 13px; }
+input, select, button { font: inherit; padding: 8px 12px; border: 1px solid #906547; border-radius: 5px; }
+button { background: #673527; color: #fff0e0; cursor: pointer; }
+button:disabled { opacity: .5; cursor: wait; }
+p { margin: 10px 0 0; font-size: 13px; color: #c7b09c; }
+iframe { width: 100%; flex: 1; min-height: 0; border: 0; background: #160d0c; }
+.error { color: #ffb5a7; }
+.preview-content { position: relative; flex: 1; min-height: 0; overflow: auto; transform: translateZ(0); }
+.preview-content > main { min-height: 100% !important; }
+.preview-content > div { height: 100% !important; }
+.simulator-header { position: relative; padding: 8px 52px 8px 14px; flex-shrink: 0; max-height: 45dvh; overflow: auto; background: #141414; color: #ededed; border-bottom-color: #333; }
+.simulator-header.is-collapsed { padding: 0; min-height: 32px; }
+.simulator-header .header-toggle { position: absolute; top: 3px; right: 10px; display: grid; place-items: center; width: 28px; min-height: 26px; padding: 4px; }
+.simulator-header p { color: #ccc; }
+.simulator-header .error { color: #fff; }
+.header-columns { display: flex; justify-content: space-between; align-items: start; gap: 16px; flex-wrap: wrap; }
+.account-editor { min-width: 0; display: grid; grid-template-columns: 1fr; align-items: center; gap: 4px; }
+.simulator-header form { gap: 6px; }
+.simulator-header label { font-size: 10px; gap: 3px; }
+.simulator-header input, .simulator-header select { background: #0d0d0d; color: #ededed; min-height: 30px; max-width: 100%; border-color: #444; }
+.simulator-header input { width: 150px; }
+.simulator-header input, .simulator-header select, .simulator-header button { font-size: 12px; padding: 5px 8px; }
+.simulator-header button { min-height: 30px; background: #252525; color: #f5f5f5; border-color: #484848; }
+.simulator-header button:hover:not(:disabled) { background: #353535; }
+.simulator-header button:focus-visible, .simulator-header input:focus-visible, .simulator-header select:focus-visible { outline: 2px solid #ddd; outline-offset: 2px; }
+.active-account { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; font-size: 10px; }
+.active-account span { font-size: 10px; color: #bbb; }
+.saved-accounts { margin-left: auto; display: flex; align-items: end; flex-wrap: wrap; gap: 6px; }
+.saved-accounts label { min-width: 0; max-width: 210px; }
+.saved-actions { display: flex; align-items: end; gap: 6px; }
+.delete-account { background: transparent; border-color: #976356; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.simulator-header [role="status"] { position: absolute; bottom: 6px; right: 52px; margin: 0; font-size: 10px; }
+.simulator-header [role="status"]:empty { display: none; }
+@media (max-width: 650px) { .header-columns { gap: 8px; } .account-editor { grid-template-columns: 1fr; } .saved-accounts { margin-left: 0; padding-bottom: 12px; } }

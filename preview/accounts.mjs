@@ -1,6 +1,9 @@
 export const roles = ['user', 'traveler', 'admin', 'owner'];
 export const membershipRoles = ['viewer', 'participant', 'writer', 'admin'];
 export const effectiveRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.membershipRole || 'viewer';
+export const expeditionRoles = ['viewer', 'traveler', 'admin'];
+export const expeditionTeams = ['', 'red', 'blue', 'green', 'yellow', 'purple', 'white', 'black'];
+export const expeditionRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.expeditionMembershipRole || 'viewer';
 
 // Numeric IDs match the unchanged board's member-selection contract.
 export function createAccountStore(storage) {
@@ -39,6 +42,14 @@ export function createAccountStore(storage) {
       const existing = state.accounts.find(account => account.id === id);
       if (!existing) throw new Error('Saved account not found.');
       const account = { ...existing, membershipRole, team };
+      commit({ ...state, accounts: state.accounts.map(item => item.id === id ? account : item) });
+      return { ...account };
+    },
+    assignExpedition(id, membershipRole, team) {
+      if (!expeditionRoles.includes(membershipRole) || !expeditionTeams.includes(team)) throw new Error('Choose a valid Expedition permission and team.');
+      const existing = state.accounts.find(account => account.id === id);
+      if (!existing) throw new Error('Saved account not found.');
+      const account = { ...existing, expeditionMembershipRole: membershipRole, expeditionTeam: team };
       commit({ ...state, accounts: state.accounts.map(item => item.id === id ? account : item) });
       return { ...account };
     },

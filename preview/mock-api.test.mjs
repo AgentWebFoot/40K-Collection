@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMockApi } from './mock-api.mjs';
 import { createAccountStore, roles } from './accounts.mjs';
+import { createExpeditionApi } from './expedition-api.mjs';
 
 const account = (role, username = 'Alice') => ({ role, username });
 const call = (api, user, route, method = 'GET', body) => api(user, `http://localhost/pyrrhic-war${route}`, { method, body: body && JSON.stringify(body) });
 const storage = () => { let data = null; return { getItem: () => data, setItem: (_, value) => { data = value; } }; };
+const expeditionCall = (api, user, route, method = 'GET', body) => api(user, `http://localhost/expedition${route}`, { method, body: body && JSON.stringify(body) });
 
 test('site accounts have only the four requested roles and start with the correct access', async () => {
   assert.deepEqual(roles, ['user', 'traveler', 'admin', 'owner']);
@@ -103,4 +105,78 @@ test('favorites stay isolated between usernames, including unsaved accounts', as
   assert.equal((await (await call(api, account('user', 'Bob'), '/favorites')).json()).favorites.length, 0);
   await call(api, account('user'), `/favorites/${encodeURIComponent(key)}`, 'DELETE');
   assert.equal((await (await call(api, account('user'), '/favorites')).json()).favorites.length, 0);
+});
+
+test('Expedition assignments persist separately from existing Pyrrhic War assignments', async () => {
+  const disk = storage();
+  const db = createAccountStore(disk);
+  const alice = db.save(account('traveler'));
+  db.assign(alice.id, 'writer', 3);
+  const api = createExpeditionApi({ tiles: [] }, db);
+  const admin = account('admin', 'Manager');
+  assert.equal((await (await expeditionCall(api, alice, '/access')).json()).access.role, 'viewer');
+  const assigned = await expeditionCall(api, admin, '/roles/set-role', 'POST', { targetUserId: alice.id, role: 'traveler', team: 'purple' });
+  assert.equal(assigned.status, 200);
+  const reloaded = createAccountStore(disk);
+  assert.equal(reloaded.find('Alice').membershipRole, 'writer');
+  assert.equal(reloaded.find('Alice').team, 3);
+  const payload = await (await expeditionCall(createExpeditionApi({}, reloaded), alice, '/access')).json();
+  assert.equal(payload.access.role, 'traveler');
+  assert.equal(payload.access.team, 'purple');
+  assert.equal(payload.user.id, alice.id);
+  reloaded.save(account('user', 'Alice'));
+  assert.equal(reloaded.find('Alice').expeditionTeam, 'purple');
+});
+
+test('Expedition settings enforce authority and the correct game roles and teams', async () => {
+  const db = createAccountStore();
+  const alice = db.save(account('user'));
+  const owner = db.save(account('owner', 'Owner'));
+  const admin = db.save(account('admin', 'Manager'));
+  const api = createExpeditionApi({}, db);
+  const update = (user, id, role, team) => expeditionCall(api, user, '/roles/set-role', 'POST', { targetUserId: id, role, team });
+  assert.equal((await expeditionCall(api, alice, '/roles/list')).status, 403);
+  assert.equal((await update(alice, alice.id, 'admin', 'red')).status, 403);
+  assert.equal((await update(owner, alice.id, 'writer', 'red')).status, 400);
+  assert.equal((await update(owner, alice.id, 'traveler', 1)).status, 400);
+  assert.equal((await update(admin, owner.id, 'owner', 'red')).status, 403);
+  assert.equal((await update(owner, owner.id, 'owner', 'red')).status, 200);
+  // The original board sends "owner" for all disabled inherited-role selects.
+  assert.equal((await update(owner, admin.id, 'owner', 'blue')).status, 200);
+  assert.equal((await (await expeditionCall(api, admin, '/access')).json()).access.role, 'admin');
+});
+
+test('Expedition maps are isolated from Pyrrhic War and source seeds', async () => {
+  const db = createAccountStore();
+  const seed = { tiles: [], round: 1 };
+  const expedition = createExpeditionApi(seed, db);
+  const pyrrhic = createMockApi({ tiles: [], rows: 21 }, {}, db);
+  assert.equal((await expeditionCall(expedition, account('user'), '/map', 'POST', { map: { tiles: [], round: 2 } })).status, 403);
+  assert.equal((await expeditionCall(expedition, account('admin'), '/map', 'POST', { map: { tiles: [], round: 2 } })).status, 200);
+  assert.equal((await (await expeditionCall(expedition, account('user'), '/map')).json()).round, 2);
+  assert.deepEqual(await (await call(pyrrhic, account('user'), '/map')).json(), { tiles: [], rows: 21 });
+  assert.equal(seed.round, 1);
+});
+
+test('Expedition traveler requests support own lists, updates, cancellation, and admin denial', async () => {
+  const db = createAccountStore();
+  const alice = db.save(account('traveler'));
+  const bob = db.save(account('traveler', 'Bob'));
+  db.assignExpedition(alice.id, 'traveler', 'red');
+  db.assignExpedition(bob.id, 'traveler', 'blue');
+  const api = createExpeditionApi({}, db);
+  const changeSet = { requestType: 'movement', requesterTeam: 'red', changes: [] };
+  assert.equal((await expeditionCall(api, bob, '/map-requests', 'POST', { changeSet })).status, 403);
+  const { request } = await (await expeditionCall(api, alice, '/map-requests', 'POST', { changeSet })).json();
+  assert.equal(request.requesterUserId, alice.id);
+  assert.equal((await (await expeditionCall(api, bob, '/map-requests/mine')).json()).requests.length, 0);
+  assert.equal((await expeditionCall(api, bob, '/map-requests/cancel-own', 'POST', { requestId: request.id })).status, 403);
+  assert.equal((await expeditionCall(api, alice, '/map-requests/update', 'POST', { requestId: request.id, changeSet })).status, 200);
+  assert.equal((await expeditionCall(api, alice, '/map-requests/cancel-own', 'POST', { requestId: request.id })).status, 200);
+  assert.equal((await (await expeditionCall(api, alice, '/map-requests/mine')).json()).requests.length, 0);
+  const second = await (await expeditionCall(api, alice, '/map-requests', 'POST', { changeSet })).json();
+  assert.equal((await expeditionCall(api, account('admin'), '/map-requests/deny', 'POST', { requestId: second.request.id })).status, 200);
+  assert.equal((await (await expeditionCall(api, account('admin'), '/map-requests/list')).json()).requests.length, 0);
+  assert.equal((await (await expeditionCall(api, alice, '/map-requests/history')).json()).requests.length, 2);
+  assert.equal((await expeditionCall(api, account('admin'), '/map-requests/accept', 'POST', {})).status, 501);
 });

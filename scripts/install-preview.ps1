@@ -18,6 +18,11 @@ try {
             throw "Missing simulator file: $file. Restore it from the repository or use a complete checkout; see README.md."
         }
     }
+    foreach ($file in @('preview/expedition-api.mjs', 'Expedition/Expedition.jsx', 'Expedition/ExpeditionMap.jsx', 'Expedition/ExpeditionMap.html', 'Expedition/expeditionmap.json', 'Expedition/ExpeditionMap.gif', 'Expedition/location-compendium.json')) {
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+            throw "Missing Expedition preview file: $file. Restore it from the repository."
+        }
+    }
     if ($CheckOnly) {
         Write-Host 'Install prerequisites are ready.'
     } else {

@@ -40,3 +40,11 @@ iframe { width: 100%; flex: 1; min-height: 0; border: 0; background: #160d0c; }
 .simulator-header [role="status"] { position: absolute; bottom: 6px; right: 52px; margin: 0; font-size: 10px; }
 .simulator-header [role="status"]:empty { display: none; }
 @media (max-width: 650px) { .header-columns { gap: 8px; } .account-editor { grid-template-columns: 1fr; } .saved-accounts { margin-left: 0; padding-bottom: 12px; } }
+.project-picker { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 32px 20px; background: #191919; color: #eee; }
+.project-picker h1 { font: 24px 'Trebuchet MS', sans-serif; color: #eee; margin-bottom: 24px; }
+.project-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; width: 100%; }
+.project-choice { display: grid; gap: 10px; padding: 30px; width: 290px; max-width: 100%; background: #242424; border: 1px solid #555; border-radius: 8px; text-decoration: none; color: #eee; }
+.project-choice strong { font-size: 20px; }
+.project-choice span { color: #bbb; font-size: 13px; }
+.project-choice:hover { background: #333; }
+.project-choice:focus-visible { outline: 2px solid #ddd; outline-offset: 3px; }

@@ -1,14 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import PyrrhicWar from '../PyrrhicWar/PyrrhicWar.jsx';
 import PyrrhicWarMap from '../PyrrhicWar/PyrrhicWarMap.jsx';
 import PyrrhicWarCompendium from '../PyrrhicWar/PyrrhicWarCompendium.jsx';
+import Expedition from '../Expedition/Expedition.jsx';
+import ExpeditionMap from '../Expedition/ExpeditionMap.jsx';
 import { initialize, setAccount, getAccount, accounts } from './auth.mjs';
-import { roles, effectiveRole } from './accounts.mjs';
+import { roles, effectiveRole, expeditionRole } from './accounts.mjs';
 
 const label = value => value[0].toUpperCase() + value.slice(1);
+function ProjectPicker() {
+  return <main className="project-picker">
+    <h1>Choose a project</h1>
+    <div className="project-choices">
+      <Link className="project-choice" to="/projects/PyrrhicWar"><strong>Pyrrhic War</strong><span>Campaign board &amp; compendium</span></Link>
+      <Link className="project-choice" to="/projects/Expedition"><strong>Expedition</strong><span>Expedition map</span></Link>
+    </div>
+  </main>;
+}
 function App() {
+  const location = useLocation();
+  const isExpedition = location.pathname.startsWith('/projects/Expedition');
+  const isPyrrhicWar = location.pathname.startsWith('/projects/PyrrhicWar');
   const [draft, setDraft] = useState(getAccount());
   const [active, setActive] = useState(getAccount());
   const [saved, setSaved] = useState(accounts.list());
@@ -54,7 +68,10 @@ function App() {
             <label>Permission<select name="role" value={draft.role} onChange={change}>{roles.map(role => <option key={role} value={role}>{label(role)}</option>)}</select></label>
             <button type="submit">Apply</button>
           </form>
-          <p className="active-account"><strong>{active.username}</strong><span>{label(active.role)}</span><span>Pyrrhic War: {label(effectiveRole({ ...active, membershipRole: activeMember?.membershipRole }))}</span></p>
+          <p className="active-account"><strong>{active.username}</strong><span>{label(active.role)}</span>
+            {isPyrrhicWar && <span>Pyrrhic War: {label(effectiveRole({ ...active, membershipRole: activeMember?.membershipRole }))}</span>}
+            {isExpedition && <span>Expedition: {label(expeditionRole({ ...active, expeditionMembershipRole: activeMember?.expeditionMembershipRole }))}</span>}
+          </p>
         </section>
         <section className="saved-accounts" aria-labelledby="saved-title">
           <h2 id="saved-title" className="visually-hidden">Saved accounts</h2>
@@ -89,10 +106,13 @@ function App() {
     </header>
     <section className="preview-content" key={version}>
       <Routes>
+        <Route path="/projects" element={<ProjectPicker />} />
         <Route path="/projects/PyrrhicWar" element={<PyrrhicWar />} />
         <Route path="/projects/PyrrhicWarMap" element={<PyrrhicWarMap />} />
         <Route path="/projects/PyrrhicWarCompendium" element={<PyrrhicWarCompendium />} />
-        <Route path="*" element={<Navigate to="/projects/PyrrhicWar" replace />} />
+        <Route path="/projects/Expedition" element={<Expedition />} />
+        <Route path="/projects/ExpeditionMap" element={<ExpeditionMap />} />
+        <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </section>
   </main>;

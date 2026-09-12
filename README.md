@@ -1,6 +1,6 @@
 # 40K-Collection
 
-## Pyrrhic War React test page
+## React test pages: Pyrrhic War and Expedition
 
 The React account simulator is an optional local development setup. Its JSX
 files, `preview/` folder, package manifests, and helper scripts belong in the
@@ -44,7 +44,9 @@ You do not need to copy `node_modules` or install these packages globally.
 On this computer, where the local files and dependencies already exist, just
 use the launch script or run `npm run dev`.
 
-Open **http://127.0.0.1:5173**. Enter a username and select **User**, **Traveler**,
+Open **http://127.0.0.1:5173** and choose **Pyrrhic War** or **Expedition**.
+Use the landing page's **Back** button to return to the project selection page.
+Enter a username and select **User**, **Traveler**,
 **Admin**, or **Owner**, then click **Apply**. Use the Pyrrhic War landing page to open the
 Compendium or Crusade Board. The header remains visible on both pages.
 
@@ -88,6 +90,22 @@ still needs internet access for its existing React CDN scripts.
 
 Run `npm test` to check the simulated access rules and supported API behavior.
 The local server binds only to `127.0.0.1` and does not write campaign source data.
+
+Expedition uses the same saved site accounts and compact, collapsible header.
+Its game assignments are separate from Pyrrhic War: open the Expedition map as
+an Admin or Owner, then use its settings to assign Viewer, Traveler, or Admin
+and a color team to a saved account. Existing saved accounts remain available;
+accounts without an Expedition assignment start as Viewer with no team. Site
+Admins and Owners retain administrative access in both games.
+
+The Expedition simulator supports map and round saves, team points, member
+assignments, request submission and editing, personal and admin request lists,
+cancellation, denial, and reading request history. Memberships persist in browser
+storage; map and request changes last until the outer page is refreshed and stay
+separate from Pyrrhic War. Request acceptance, history deletion, and bounty
+mutations are not simulated and return explicit errors. The bounty list starts
+empty. Expedition's Compendium is unavailable in the supplied landing page.
+The original Expedition HTML and map assets are served without modifying files.
 
 If launch reports that port 5173 is already in use, the preview may already be
 running: open **http://127.0.0.1:5173**. To restart it, press **Ctrl+C** in the

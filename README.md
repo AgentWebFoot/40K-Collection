@@ -4,13 +4,23 @@
 
 The React account simulator is an optional local development setup. Its JSX
 files, `preview/` folder, package manifests, and helper scripts belong in the
-repository. Only `node_modules/` is gitignored; the install script downloads
-those dependencies.
+repository. Installed dependencies (`node_modules/`) and JSON data under
+`Expedition/` and `PyrrhicWar/` are gitignored. The install script downloads
+dependencies, but does not download campaign data.
 
 To set up the simulator on another computer:
 
 1. Install Node.js 20 or newer, including npm.
-2. Clone this repository.
+2. Clone this repository and copy your local campaign data into these paths:
+
+   ```text
+   Expedition/expeditionmap.json
+   Expedition/location-compendium.json
+   PyrrhicWar/campaign-map.json
+   PyrrhicWar/pyrrhicCompendium.JSON
+   ```
+
+   These files are kept locally and must be supplied separately on a new checkout.
 3. On Windows, open PowerShell in the repository root and run the install script:
 
    ```powershell

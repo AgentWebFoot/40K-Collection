@@ -1,2 +1,6 @@
 # Dependencies installed by install-preview.ps1.
 node_modules/
+
+# Local campaign data (including uppercase .JSON files).
+/Expedition/**/*.[jJ][sS][oO][nN]
+/PyrrhicWar/**/*.[jJ][sS][oO][nN]

@@ -1,0 +1,5 @@
+# Default owner for every project, the preview, and repository configuration.
+* @AgentWebFoot
+
+# Ownership of this configuration file.
+/.github/CODEOWNERS @AgentWebFoot

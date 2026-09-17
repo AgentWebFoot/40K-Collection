@@ -1,9 +1,13 @@
+import { campaignTestPlayers } from '../HybridCampaign/test-player-fixtures.mjs';
+
 export const roles = ['user', 'traveler', 'admin', 'owner'];
 export const membershipRoles = ['viewer', 'participant', 'writer', 'admin'];
 export const effectiveRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.membershipRole || 'viewer';
 export const expeditionRoles = ['viewer', 'traveler', 'admin'];
 export const expeditionTeams = ['', 'red', 'blue', 'green', 'yellow', 'purple', 'white', 'black'];
 export const expeditionRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.expeditionMembershipRole || 'viewer';
+/** Campaign roles are a separate, local-preview assignment. They never alter site permission. */
+export const campaignRoles = ['owner-gm', 'gm', 'co-gm', 'player', 'display'];
 
 // Numeric IDs match the unchanged board's member-selection contract.
 export function createAccountStore(storage) {
@@ -12,7 +16,10 @@ export function createAccountStore(storage) {
   let state = raw ? JSON.parse(raw) : { nextId: 1, accounts: [] };
   if (!Number.isSafeInteger(state.nextId) || !Array.isArray(state.accounts) || state.accounts.some(account =>
     !Number.isSafeInteger(account.id) || typeof account.username !== 'string' || !roles.includes(account.role) ||
-    !membershipRoles.includes(account.membershipRole) || !Number.isInteger(account.team) || account.team < 0 || account.team > 4)) {
+    !membershipRoles.includes(account.membershipRole) || !Number.isInteger(account.team) || account.team < 0 || account.team > 4 ||
+    (account.campaignRole !== undefined && !campaignRoles.includes(account.campaignRole)) ||
+    (account.testFixtureId !== undefined && !campaignTestPlayers.some(fixture => fixture.id === account.testFixtureId)) ||
+    (account.campaignIdentityId !== undefined && typeof account.campaignIdentityId !== 'string'))) {
     throw new Error('Saved preview accounts are invalid. Clear the pyrrhic-preview-accounts-v1 browser storage entry to reset them.');
   }
   const listeners = new Set();
@@ -52,6 +59,33 @@ export function createAccountStore(storage) {
       const account = { ...existing, expeditionMembershipRole: membershipRole, expeditionTeam: team };
       commit({ ...state, accounts: state.accounts.map(item => item.id === id ? account : item) });
       return { ...account };
+    },
+    assignCampaignRole(id, campaignRole) {
+      if (!campaignRoles.includes(campaignRole)) throw new Error('Choose a valid Hybrid Campaign role.');
+      const existing = state.accounts.find(account => account.id === id);
+      if (!existing) throw new Error('Saved account not found.');
+      const account = { ...existing, campaignRole, campaignIdentityId: campaignRole === 'player' ? existing.campaignIdentityId : undefined };
+      commit({ ...state, accounts: state.accounts.map(item => item.id === id ? account : item) });
+      return { ...account };
+    },
+    assignCampaignIdentity(id, campaignIdentityId) {
+      if (typeof campaignIdentityId !== 'string' || !campaignIdentityId.trim()) throw new Error('A valid campaign identity is required.');
+      const existing = state.accounts.find(account => account.id === id);
+      if (!existing || existing.campaignRole !== 'player') throw new Error('Only a saved player account may receive a campaign identity.');
+      const account = { ...existing, campaignIdentityId: campaignIdentityId.trim() };
+      commit({ ...state, accounts: state.accounts.map(item => item.id === id ? account : item) });
+      return { ...account };
+    },
+    /** Seed the five clearly-labelled player fixtures only in the browser preview. */
+    seedCampaignTestAccounts() {
+      let nextId = state.nextId;
+      const nextAccounts = [...state.accounts];
+      for (const fixture of campaignTestPlayers) {
+        if (nextAccounts.some(account => account.testFixtureId === fixture.id)) continue;
+        nextAccounts.push({ id: nextId++, username: fixture.accountName, role: 'user', membershipRole: 'viewer', team: 0, campaignRole: 'player', testFixtureId: fixture.id });
+      }
+      if (nextId !== state.nextId) commit({ nextId, accounts: nextAccounts });
+      return nextAccounts.filter(account => account.testFixtureId).map(account => ({ ...account }));
     },
   };
 }

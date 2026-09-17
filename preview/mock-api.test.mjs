@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMockApi } from './mock-api.mjs';
-import { createAccountStore, roles } from './accounts.mjs';
+import { campaignRoles, createAccountStore, roles } from './accounts.mjs';
 import { createExpeditionApi } from './expedition-api.mjs';
 
 const account = (role, username = 'Alice') => ({ role, username });
@@ -32,6 +32,35 @@ test('accounts update without duplicates and assignments survive a reload', () =
   db.remove(original.id);
   assert.equal(createAccountStore(disk).list().length, 0);
   assert.ok(db.save(account('user', 'Alice')).id > original.id);
+});
+
+test('campaign test accounts seed once with a player for every approved faction', () => {
+  const disk = storage();
+  let db = createAccountStore(disk);
+  const first = db.seedCampaignTestAccounts();
+  assert.equal(first.length, 5);
+  assert.deepEqual(first.map(account => account.campaignRole), ['player', 'player', 'player', 'player', 'player']);
+  const ids = first.map(account => account.id);
+  assert.deepEqual(db.seedCampaignTestAccounts().map(account => account.id), ids);
+  db = createAccountStore(disk);
+  assert.deepEqual(db.list().filter(account => account.testFixtureId).map(account => account.testFixtureId), ['test-adeptus-astartes', 'test-adeptus-mechanicus', 'test-agents-imperium', 'test-astra-militarum', 'test-grey-knights']);
+});
+
+test('Hybrid Campaign role and identity assignments stay separate from site permissions', () => {
+  const disk = storage();
+  let db = createAccountStore(disk);
+  const player = db.save(account('traveler', 'Campaign Player'));
+  assert.deepEqual(campaignRoles, ['owner-gm', 'gm', 'co-gm', 'player', 'display']);
+  db.assignCampaignRole(player.id, 'player');
+  db.assignCampaignIdentity(player.id, 'campaign-identity-1');
+  db = createAccountStore(disk);
+  const restored = db.find('Campaign Player');
+  assert.equal(restored.role, 'traveler');
+  assert.equal(restored.campaignRole, 'player');
+  assert.equal(restored.campaignIdentityId, 'campaign-identity-1');
+  db.assignCampaignRole(player.id, 'display');
+  assert.equal(db.find('Campaign Player').campaignIdentityId, undefined);
+  assert.throws(() => db.assignCampaignIdentity(player.id, 'other'), /Only a saved player account/);
 });
 
 test('saving fails honestly when browser storage cannot persist', () => {

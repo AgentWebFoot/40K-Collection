@@ -42,9 +42,13 @@ iframe { width: 100%; flex: 1; min-height: 0; border: 0; background: #160d0c; }
 @media (max-width: 650px) { .header-columns { gap: 8px; } .account-editor { grid-template-columns: 1fr; } .saved-accounts { margin-left: 0; padding-bottom: 12px; } }
 .project-picker { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 32px 20px; background: #191919; color: #eee; }
 .project-picker h1 { font: 24px 'Trebuchet MS', sans-serif; color: #eee; margin-bottom: 24px; }
+.project-section { width: min(940px, 100%); }
+.project-kicker { margin: 0 0 4px; color: #ca9367; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.project-section h2 { margin: 0 0 16px; color: #eee; font: 18px 'Trebuchet MS', sans-serif; }
 .project-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; width: 100%; }
 .project-choice { display: grid; gap: 10px; padding: 30px; width: 290px; max-width: 100%; background: #242424; border: 1px solid #555; border-radius: 8px; text-decoration: none; color: #eee; }
 .project-choice strong { font-size: 20px; }
 .project-choice span { color: #bbb; font-size: 13px; }
 .project-choice:hover { background: #333; }
+.project-choice-featured { border-color: #9a7156; background: linear-gradient(145deg, #2b201d, #242424); }
 .project-choice:focus-visible { outline: 2px solid #ddd; outline-offset: 3px; }

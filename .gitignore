@@ -4,3 +4,13 @@ node_modules/
 # Local campaign data (including uppercase .JSON files).
 /Expedition/**/*.[jJ][sS][oO][nN]
 /PyrrhicWar/**/*.[jJ][sS][oO][nN]
+
+# Local-only Hybrid Campaign authority snapshot and browser-QA output.
+/HybridCampaign/.campaign-preview-state.json
+/HybridCampaign/.campaign-preview-state.json.*.tmp
+/test-results/
+/playwright-report/
+
+# Local archive batches. This directory is intentionally outside Git so retired
+# branch work can be kept beside the project without returning to active scope.
+/Archive/

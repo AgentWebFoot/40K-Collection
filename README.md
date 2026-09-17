@@ -99,7 +99,20 @@ are not implemented: they return explicit errors. The embedded compendium
 still needs internet access for its existing React CDN scripts.
 
 Run `npm test` to check the simulated access rules and supported API behavior.
-The local server binds only to `127.0.0.1` and does not write campaign source data.
+The local server binds only to `127.0.0.1` and does not write campaign source documents.
+
+## Tavrellis Player Command Deck
+
+The **Warhammer Projects** section includes a local Tavrellis player Atlas. It
+reuses the existing browser-local saved accounts, with a separate Hybrid
+Campaign player role and one-time character/faction onboarding. The command
+deck is deliberately read-only: it displays only the public Atlas projection,
+and its future terminal surfaces are visibly inactive.
+
+The preview persists only local Atlas player profiles at
+`HybridCampaign/.campaign-preview-state.json`. That ignored file is not a
+replacement for hosted authentication. The Atlas is served under
+`/hybrid-campaign/`; only its three required visual assets are publicly served.
 
 Expedition uses the same saved site accounts and compact, collapsible header.
 Its game assignments are separate from Pyrrhic War: open the Expedition map as

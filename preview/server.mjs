@@ -2,18 +2,19 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { build } from 'esbuild';
+import { context } from 'esbuild';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const types = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
 const port = Number(process.env.PORT || 5173);
-const bundle = await build({
+const appBuild = await context({
   entryPoints: [path.join(root, 'preview/app.jsx')], bundle: true, write: false,
   format: 'esm', jsx: 'automatic',
   plugins: [{ name: 'local-auth', setup(builder) {
     builder.onResolve({ filter: /^\.\.\/\.\.\/utils\/auth$/ }, () => ({ path: path.join(root, 'preview/auth.mjs') }));
   } }],
 });
+await appBuild.rebuild();
 const bridge = `<script>
   const mockFetch = parent.createPreviewFetch();
   const originalFetch = window.fetch.bind(window);
@@ -27,7 +28,14 @@ http.createServer(async (req, res) => {
   try {
     let name = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (name === '/preview/app.bundle.js') {
-      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }).end(bundle.outputFiles[0].text); return;
+      try {
+        const bundle = await appBuild.rebuild();
+        res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }).end(bundle.outputFiles[0].text);
+      } catch (error) {
+        console.error('Unable to rebuild the preview:', error);
+        res.writeHead(500, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }).end('Unable to rebuild the preview. See the server console.');
+      }
+      return;
     }
     if (name === '/' || name.startsWith('/projects')) name = '/preview/index.html';
     name = name.replace(/^\/games\/(PyrrhicWar|Expedition)\//, '/$1/');

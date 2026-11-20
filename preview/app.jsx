@@ -6,6 +6,8 @@ import PyrrhicWarMap from '../PyrrhicWar/PyrrhicWarMap.jsx';
 import PyrrhicWarCompendium from '../PyrrhicWar/PyrrhicWarCompendium.jsx';
 import Expedition from '../Expedition/Expedition.jsx';
 import ExpeditionMap from '../Expedition/ExpeditionMap.jsx';
+import ExpeditionTeams from '../Expedition/ExpeditionTeams.jsx';
+import ExpeditionBattles from '../Expedition/ExpeditionBattles.jsx';
 import { initialize, setAccount, getAccount, accounts } from './auth.mjs';
 import { roles, effectiveRole, expeditionRole } from './accounts.mjs';
 
@@ -112,6 +114,9 @@ function App() {
         <Route path="/projects/PyrrhicWarCompendium" element={<PyrrhicWarCompendium />} />
         <Route path="/projects/Expedition" element={<Expedition />} />
         <Route path="/projects/ExpeditionMap" element={<ExpeditionMap />} />
+        <Route path="/projects/ExpeditionTeams" element={<ExpeditionTeams />} />
+        <Route path="/projects/ExpeditionBattles" element={<ExpeditionBattles />} />
+        <Route path="/projects/ExpeditionBattles/settings" element={<ExpeditionBattles settings />} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </section>

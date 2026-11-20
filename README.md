@@ -63,7 +63,7 @@ Compendium or Crusade Board. The header remains visible on both pages.
 The preview runs the original JSX components. Their missing website auth import
 is resolved to `preview/auth.mjs` by the local JSX compiler. The server injects a
 fetch adapter into the served iframe response before the page scripts run; the
-existing HTML and JavaScript files on disk are unchanged. Restart `npm run dev`
+existing HTML and JavaScript files on disk are unchanged. Refresh the browser
 after changing JSX files to rebuild the preview.
 
 The right side of the header lets you **Save**, **Load**,
@@ -102,19 +102,23 @@ Run `npm test` to check the simulated access rules and supported API behavior.
 The local server binds only to `127.0.0.1` and does not write campaign source data.
 
 Expedition uses the same saved site accounts and compact, collapsible header.
-Its game assignments are separate from Pyrrhic War: open the Expedition map as
-an Admin or Owner, then use its settings to assign Viewer, Traveler, or Admin
+Its game assignments are separate from Pyrrhic War: open the Expedition menu as
+an Admin or Owner, then use the settings gear to assign Viewer, Traveler, or Admin
 and a color team to a saved account. Existing saved accounts remain available;
 accounts without an Expedition assignment start as Viewer with no team. Site
 Admins and Owners retain administrative access in both games.
 
 The Expedition simulator supports map and round saves, team points, member
 assignments, request submission and editing, personal and admin request lists,
-cancellation, denial, and reading request history. Memberships persist in browser
-storage; map and request changes last until the outer page is refreshed and stay
-separate from Pyrrhic War. Request acceptance, history deletion, and bounty
-mutations are not simulated and return explicit errors. The bounty list starts
-empty. Expedition's Compendium is unavailable in the supplied landing page.
+cancellation, denial, and reading request history. Use **Battles** to see reports
+involving your team and log a battle. Admins can review reports and edit battle
+rewards in **Battles → Settings**. Reports, team point balances, rosters,
+memberships, and admin settings, including the round, persist in browser storage.
+Tile edits and other requests last until the outer page is refreshed. Admins can
+also approve resupply and point-only Search and Manoeuvre requests. Approval of other
+requests, history deletion, and bounty mutations return explicit errors. The
+bounty list starts empty. Expedition's Compendium is unavailable in the supplied
+landing page.
 The original Expedition HTML and map assets are served without modifying files.
 
 If launch reports that port 5173 is already in use, the preview may already be

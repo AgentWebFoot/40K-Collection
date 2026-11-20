@@ -64,7 +64,6 @@ const ExpeditionMap = () => {
       >
         &lt; Back 
       </button>
-
       <iframe
         src={`/games/Expedition/ExpeditionMap.html?role=${encodeURIComponent(resolvedRole)}&apiUrl=${apiUrl}`}
         title="Expedition Crusade Board"

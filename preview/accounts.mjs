@@ -1,8 +1,9 @@
+import { expeditionRoles, expeditionTeams } from '../Expedition/expedition-membership.mjs';
+
+export { expeditionRoles, expeditionTeams };
 export const roles = ['user', 'traveler', 'admin', 'owner'];
 export const membershipRoles = ['viewer', 'participant', 'writer', 'admin'];
 export const effectiveRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.membershipRole || 'viewer';
-export const expeditionRoles = ['viewer', 'traveler', 'admin'];
-export const expeditionTeams = ['', 'red', 'blue', 'green', 'yellow', 'purple', 'white', 'black'];
 export const expeditionRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.expeditionMembershipRole || 'viewer';
 
 // Numeric IDs match the unchanged board's member-selection contract.

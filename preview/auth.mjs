@@ -25,7 +25,7 @@ export async function initialize() {
   }));
   accounts = createAccountStore(window.localStorage);
   const pyrrhicApi = createMockApi(seeds[0], seeds[1], accounts);
-  const expeditionApi = createExpeditionApi(seeds[2], accounts);
+  const expeditionApi = createExpeditionApi(seeds[2], accounts, window.localStorage);
   api = (account, url, options) => new URL(url).pathname.startsWith('/expedition/')
     ? expeditionApi(account, url, options) : pyrrhicApi(account, url, options);
   window.createPreviewFetch = () => {

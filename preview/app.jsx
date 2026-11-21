@@ -8,6 +8,8 @@ import Expedition from '../Expedition/Expedition.jsx';
 import ExpeditionMap from '../Expedition/ExpeditionMap.jsx';
 import ExpeditionTeams from '../Expedition/ExpeditionTeams.jsx';
 import ExpeditionBattles from '../Expedition/ExpeditionBattles.jsx';
+import ExpeditionBounties from '../Expedition/ExpeditionBounties.jsx';
+import ExpeditionShop from '../Expedition/ExpeditionShop.jsx';
 import HybridCampaign from '../HybridCampaign/HybridCampaign.jsx';
 import { initialize, setAccount, getAccount, accounts } from './auth.mjs';
 import { campaignRoles, roles, effectiveRole, expeditionRole } from './accounts.mjs';
@@ -124,6 +126,8 @@ function App() {
         <Route path="/projects/Expedition" element={<Expedition />} />
         <Route path="/projects/ExpeditionMap" element={<ExpeditionMap />} />
         <Route path="/projects/ExpeditionTeams" element={<ExpeditionTeams />} />
+        <Route path="/projects/ExpeditionBounties" element={<ExpeditionBounties />} />
+        <Route path="/projects/ExpeditionShop" element={<ExpeditionShop />} />
         <Route path="/projects/ExpeditionBattles" element={<ExpeditionBattles />} />
         <Route path="/projects/ExpeditionBattles/settings" element={<ExpeditionBattles settings />} />
         <Route path="/projects/HybridCampaign" element={<HybridCampaign />} />

@@ -13,6 +13,7 @@ const teams = expeditionTeams.filter(Boolean);
 const isBattle = request => request?.changeSet?.requestType === 'battle';
 const battleStateKey = 'expedition-preview-battles';
 const roundStorageKey = 'expedition-preview-round';
+const shopStorageKey = 'expedition-preview-shop';
 const rosterCategories = ['units', 'items'];
 const unitEntryTypes = {
   weapons: { key: 'weapon', validate: validateWeaponProfile },
@@ -48,6 +49,8 @@ function validSupplyCosts(costs) {
 
 const validCredits = credits => Number.isSafeInteger(credits) && credits >= 0;
 const validRound = round => Number.isSafeInteger(round) && round >= 1;
+const positiveQuantity = value => Number.isSafeInteger(value) && value > 0;
+const validStockLimit = value => value === null || positiveQuantity(value);
 
 function validTeamPoints(points) {
   return Number.isSafeInteger(points?.supplyPoints) && points.supplyPoints >= 0 && points.supplyPoints <= 10
@@ -91,13 +94,27 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
   const readRoster = team => {
     const stored = storage?.getItem(rosterKey(team));
     if (!stored) return rosters.get(team) ?? { units: [], items: [] };
-    const { units, items, displayName } = JSON.parse(stored);
+    const { units, items, displayName, lore } = JSON.parse(stored);
     if (!Array.isArray(units) || !Array.isArray(items)) throw new Error('Invalid stored roster.');
-    return { units, items, ...(typeof displayName === 'string' && displayName.trim() ? { displayName } : {}) };
+    return {
+      units, items,
+      ...(typeof displayName === 'string' && displayName.trim() ? { displayName } : {}),
+      ...(typeof lore === 'string' ? { lore } : {}),
+    };
   };
   const writeRoster = (team, roster) => {
     if (storage) storage.setItem(rosterKey(team), JSON.stringify(roster));
     else rosters.set(team, roster);
+  };
+  let shopState;
+  const readShop = () => {
+    if (shopState) return shopState;
+    const items = JSON.parse(storage?.getItem(shopStorageKey) ?? '[]');
+    if (!Array.isArray(items)) throw new Error('Invalid stored shop inventory.');
+    return {
+      items: items.map(item => ({ ...item, perUser: 1, remaining: null })),
+      purchases: [],
+    };
   };
   const readTeamPoints = team => {
     const { supplyPoints, campaignPoints, credits } = map.teamStats?.[team] ?? {};
@@ -138,18 +155,19 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     return result;
   };
   let requests = [];
-  function commitBattleState(nextRequests, teamStats = map.teamStats) {
+  function commitCampaignState(nextRequests, teamStats = map.teamStats, shop = shopState) {
     try {
-      storage?.setItem(battleStateKey, JSON.stringify({ battles: nextRequests.filter(isBattle), teamStats }));
+      storage?.setItem(battleStateKey, JSON.stringify({ battles: nextRequests.filter(isBattle), teamStats, shop }));
       requests = nextRequests;
       map.teamStats = teamStats;
+      shopState = shop;
       return true;
     } catch {
       return false;
     }
   }
   const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-  return async (account, input, options = {}) => {
+  async function handleRequest(account, input, options = {}) {
     if (!account || !roles.includes(account.role)) return reply({ message: 'Invalid simulated account.' }, 401);
     const saved = accounts.find(account.username);
     const role = expeditionRole({ ...saved, role: account.role });
@@ -170,12 +188,91 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     try {
       const stored = storage?.getItem(battleStateKey);
       if (stored) {
-        const { battles, teamStats } = JSON.parse(stored);
+        const { battles, teamStats, shop } = JSON.parse(stored);
         requests = [...requests.filter(request => !isBattle(request)), ...battles];
         if (teamStats) map.teamStats = teamStats;
+        shopState = shop;
       }
     } catch {
       return reply({ message: 'Unable to load Expedition battles and point balances from browser storage.' }, 500);
+    }
+    if (route === '/shop' || route.startsWith('/shop/')) {
+      const purchase = route === '/shop/purchase' && method === 'POST';
+      const create = route === '/shop' && method === 'POST';
+      const read = route === '/shop' && method === 'GET';
+      const manage = route === '/shop' && method === 'PATCH';
+      if (!read && !create && !manage && !purchase) return reply({ message: 'Invalid shop action.' }, 405);
+      const canPurchase = teams.includes(team) && (admin || role === 'traveler');
+      if (purchase ? !canPurchase : !read && !admin) return forbidden();
+      try {
+        const shop = readShop();
+        const { items, purchases } = shop;
+        const credits = canPurchase ? readTeamPoints(team).credits : null;
+        function catalog(state, balance = credits) {
+          const owned = new Map();
+          for (const entry of state.purchases) {
+            if (entry.buyer === user.id) owned.set(entry.listingId, (owned.get(entry.listingId) ?? 0) + entry.quantity);
+          }
+          return {
+            items: state.items.filter(item => admin || item.visible === true).map(item => ({ ...item, owned: owned.get(item.id) ?? 0 })),
+            canManage: admin, canPurchase, credits: balance,
+          };
+        }
+        if (read) return reply(catalog(shop));
+
+        const saveError = () => reply({ message: 'Unable to save the shop in browser storage.' }, 500);
+        if (create) {
+          const name = typeof body?.name === 'string' ? body.name.trim() : '';
+          const description = typeof body?.description === 'string' ? body.description.trim() : '';
+          if (!name || name.length > 100) return reply({ message: 'Enter a name from 1 to 100 characters.' }, 400);
+          if (!description || description.length > 2000) return reply({ message: 'Enter a description from 1 to 2,000 characters.' }, 400);
+          if (!validCredits(body.cost)) return reply({ message: 'Enter a credit cost of 0 or more in whole numbers.' }, 400);
+          const item = { id: crypto.randomUUID(), name, description, cost: body.cost, visible: false, perUser: 1, remaining: null };
+          const next = { ...shop, items: [...items, item] };
+          return commitCampaignState(requests, map.teamStats, next)
+            ? reply({ ...catalog(next), message: `${name} added to Backrooms.` }, 201) : saveError();
+        }
+
+        const item = items.find(entry => entry.id === body?.id);
+        if (!item || (purchase && item.visible !== true)) {
+          return reply({ ...(purchase && catalog(shop)), message: 'Shop listing not found.' }, 404);
+        }
+        const replaceItem = updated => items.map(entry => entry === item ? updated : entry);
+        if (manage) {
+          const { stock, visible } = body;
+          if (visible !== false && (!validStockLimit(stock?.perUser) || !validStockLimit(stock?.total))) {
+            return reply({ message: 'Enter a whole number of at least 1 or choose Unlimited.' }, 400);
+          }
+          const updated = visible === false
+            ? { ...item, visible: false }
+            : { ...item, visible: true, perUser: stock.perUser, remaining: stock.total };
+          const next = { ...shop, items: replaceItem(updated) };
+          const message = visible === false ? `${item.name} removed from Storefront.` : `${item.name} stocked in Storefront.`;
+          return commitCampaignState(requests, map.teamStats, next) ? reply({ ...catalog(next), message }) : saveError();
+        }
+
+        const { quantity } = body;
+        if (!positiveQuantity(quantity)) return reply({ message: 'Enter a quantity of at least 1.' }, 400);
+        if (item.remaining !== null && quantity > item.remaining) {
+          return reply({ ...catalog(shop), message: 'There is not enough stock for this purchase.' }, 409);
+        }
+        const owned = purchases.filter(entry => entry.listingId === item.id && entry.buyer === user.id)
+          .reduce((sum, entry) => sum + entry.quantity, 0);
+        if (item.perUser !== null && quantity > item.perUser - owned) {
+          return reply({ ...catalog(shop), message: 'This purchase exceeds your limit for this item.' }, 409);
+        }
+        const cost = item.cost * quantity;
+        if (cost > credits) return reply({ ...catalog(shop), message: 'Your team does not have enough credits.' }, 409);
+        const equipment = { id: crypto.randomUUID(), listingId: item.id, buyer: user.id, team, name: item.name, description: item.description, quantity };
+        const balance = credits - cost;
+        const stats = { ...map.teamStats, [team]: { ...map.teamStats?.[team], credits: balance } };
+        const updated = { ...item, remaining: item.remaining === null ? null : item.remaining - quantity };
+        const next = { items: replaceItem(updated), purchases: [...purchases, equipment] };
+        return commitCampaignState(requests, stats, next)
+          ? reply({ ...catalog(next, balance), message: `${item.name} added to team Equipment.` }, 201) : saveError();
+      } catch {
+        return reply({ message: 'Unable to load or save the shop in browser storage.' }, 500);
+      }
     }
     const patron = target => ({
       id: target.id, username: target.username, email: '', siteRole: target.role,
@@ -256,7 +353,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     if (route === '/map' && method === 'POST') {
       if (!admin) return forbidden();
       if (!body.map || !Array.isArray(body.map.tiles)) return reply({ message: 'A map with tiles is required.' }, 400);
-      if (!commitBattleState(requests, withCurrentCredits(body.map.teamStats))) return saveError();
+      if (!commitCampaignState(requests, withCurrentCredits(body.map.teamStats))) return saveError();
       map = { ...structuredClone(body.map), ...(map.teamStats ? { teamStats: map.teamStats } : {}) };
       for (const { field } of Object.values(requestSettings)) delete map[field];
       return reply({ map: readMap(), message: 'Expedition map saved locally.' });
@@ -267,7 +364,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       if (!stats || teams.some(team =>
         !Number.isFinite(stats[team]?.supplyPoints) || stats[team].supplyPoints < 0 ||
         !Number.isFinite(stats[team]?.campaignPoints) || stats[team].campaignPoints < 0)) return reply({ message: 'Invalid team points.' }, 400);
-      if (!commitBattleState(requests, withCurrentCredits(stats))) return saveError();
+      if (!commitCampaignState(requests, withCurrentCredits(stats))) return saveError();
       return reply({ teamStats: map.teamStats, message: 'Team points saved locally.' });
     }
     if (route === '/teams' && method === 'GET') {
@@ -275,21 +372,27 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         const locations = getTeamLocations(map.tiles);
         return reply({
           assignedTeam: team,
-          teams: teams.map(name => ({
-            name,
-            ...readRoster(name),
-            points: readTeamPoints(name),
-            locations: locations.get(name),
-            canAddEntries: admin || (role === 'traveler' && name === team),
-            canUploadUnitImages: role === 'traveler' && name === team,
-            canEditPoints: admin,
-          })),
+          teams: teams.map(name => {
+            const roster = readRoster(name);
+            const purchased = (shopState?.purchases ?? []).filter(item => item.team === name)
+              .map(({ id, name, description, quantity }) => ({ id, name, description, quantity }));
+            return {
+              name,
+              ...roster,
+              items: [...roster.items, ...purchased],
+              points: readTeamPoints(name),
+              locations: locations.get(name),
+              canAddEntries: admin || (role === 'traveler' && name === team),
+              canUploadUnitImages: role === 'traveler' && name === team,
+              canEditPoints: admin,
+            };
+          }),
         });
       } catch {
         return reply({ message: 'Unable to load team rosters from browser storage.' }, 500);
       }
     }
-    const teamRoute = route.match(/^\/teams\/([a-z]+)\/(name|units|items|points|weapons|abilities|actions|unit-image|unit-order)$/);
+    const teamRoute = route.match(/^\/teams\/([a-z]+)\/(name|lore|units|items|points|weapons|abilities|actions|unit-image|unit-order)$/);
     if (teamRoute && ['POST', 'PATCH', 'DELETE'].includes(method)) {
       const [, target, collection] = teamRoute;
       if (!teams.includes(target)) return reply({ message: 'Expedition team not found.' }, 404);
@@ -298,7 +401,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       if (deleting && !['abilities', 'actions'].includes(collection)) {
         return reply({ message: 'Removal is available for abilities and actions.' }, 405);
       }
-      if (editing && ['name', 'items', 'points', 'unit-image', 'unit-order'].includes(collection)) {
+      if (editing && ['name', 'lore', 'items', 'points', 'unit-image', 'unit-order'].includes(collection)) {
         return reply({ message: 'Use POST for this team endpoint.' }, 405);
       }
 
@@ -316,7 +419,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         const { supplyPoints, campaignPoints, credits = current.credits } = body.points;
         const points = { supplyPoints, campaignPoints, credits };
         const stats = { ...map.teamStats, [target]: { ...map.teamStats?.[target], ...points } };
-        if (!commitBattleState(requests, stats)) return saveError();
+        if (!commitCampaignState(requests, stats)) return saveError();
         return reply({ points, message: 'Team points saved.' });
       }
 
@@ -366,6 +469,23 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
           return reply({ displayName, message: 'Team name saved.' });
         } catch {
           return reply({ message: 'Unable to save the team name in browser storage.' }, 500);
+        }
+      }
+      if (collection === 'lore') {
+        if (typeof body?.lore !== 'string' || typeof body.expectedLore !== 'string') {
+          return reply({ message: 'Enter team lore as text.' }, 400);
+        }
+        try {
+          const roster = readRoster(target);
+          const current = roster.lore ?? '';
+          if (body.expectedLore !== current) {
+            return reply({ lore: current, message: 'Team lore changed while you were editing. Review the saved version before saving again.' }, 409);
+          }
+          const lore = body.lore.trim();
+          writeRoster(target, { ...roster, lore });
+          return reply({ lore });
+        } catch {
+          return reply({ message: 'Unable to save team lore in browser storage.' }, 500);
         }
       }
       if (Object.hasOwn(unitEntryTypes, collection)) {
@@ -460,7 +580,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
           changeSet: structuredClone(body.changeSet), status: 'pending', updatedAt: new Date().toISOString(),
         };
         const next = existing ? requests.map(item => item === existing ? request : item) : [...requests, request];
-        if (isBattle(request) && !commitBattleState(next)) return saveError();
+        if (isBattle(request) && !commitCampaignState(next)) return saveError();
         requests = next;
         return reply({ request, message: 'Expedition request saved locally.' });
       }
@@ -471,7 +591,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         if (!visible(request)) return battlesUnavailable();
         const updated = { ...request, status: route.endsWith('/deny') ? 'denied' : 'canceled', reviewedAt: new Date().toISOString(), reviewedByUsername: user.username };
         const next = requests.map(item => item === request ? updated : item);
-        if (isBattle(request) && !commitBattleState(next)) return saveError();
+        if (isBattle(request) && !commitCampaignState(next)) return saveError();
         requests = next;
         return reply({ request: updated, message: 'Request closed.' });
       }
@@ -518,11 +638,15 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
             ...request, status: 'accepted', reviewedAt: new Date().toISOString(), reviewedByUsername: user.username,
             ...(isBattle(request) ? { awardedPoints } : {}),
           };
-          if (!commitBattleState(requests.map(item => item === request ? updated : item), stats)) return saveError();
+          if (!commitCampaignState(requests.map(item => item === request ? updated : item), stats)) return saveError();
           return reply({ request: updated, map: readMap(), message: 'Expedition request accepted.' });
         }
       }
     }
     return reply({ message: `The local simulator does not implement ${method} /expedition${route}. No changes were saved.` }, 501);
-  };
+  }
+  const locks = globalThis.window?.navigator?.locks;
+  return (account, input, options) => storage && locks
+    ? locks.request(battleStateKey, () => handleRequest(account, input, options))
+    : handleRequest(account, input, options);
 }

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchJson, getAuthEventName } from '../../utils/auth';
 import { battlesUnavailableMessage, expeditionBattlesEnabled } from './battle-availability.mjs';
 import ExpeditionSettings from './ExpeditionSettings.jsx';
+import { expeditionTeams } from './expedition-membership.mjs';
 
 const styles = {
   page: {
@@ -83,7 +84,17 @@ const styles = {
   },
 };
 
+const battlesButtonStyle = { ...styles.button, gridColumn: 2 };
+
 export default function Expedition() {
+  const [searchParams] = useSearchParams();
+  const view = searchParams.get('view');
+  if (view === 'bounties') return <Navigate to="/projects/ExpeditionBounties" replace />;
+  if (view === 'shop') return <Navigate to="/projects/ExpeditionShop" replace />;
+  return <ExpeditionMenu />;
+}
+
+function ExpeditionMenu() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [round, setRound] = useState(null);
@@ -113,6 +124,10 @@ export default function Expedition() {
   }, [authRevision]);
 
   const canManage = Boolean(session?.access?.canManageRoles);
+  const assignedTeam = session?.access?.team;
+  const teamSearch = assignedTeam && expeditionTeams.includes(assignedTeam)
+    ? `?${new URLSearchParams({ team: assignedTeam })}`
+    : '';
 
   function handleMemberChange(member) {
     if (member.id !== session?.user?.id) return;
@@ -146,16 +161,22 @@ export default function Expedition() {
         <Link to="/projects/ExpeditionMap" style={styles.button}>
           Map
         </Link>
-        <Link to="/projects/ExpeditionTeams" style={styles.button}>
-          Team Management
-        </Link>
         {expeditionBattlesEnabled ? (
-          <Link to="/projects/ExpeditionBattles" style={styles.button}>Battles</Link>
+          <Link to="/projects/ExpeditionBattles" style={battlesButtonStyle}>Battles</Link>
         ) : (
-          <button type="button" disabled title={battlesUnavailableMessage} style={{ ...styles.button, ...styles.disabledButton }}>
+          <button type="button" disabled title={battlesUnavailableMessage} style={{ ...battlesButtonStyle, ...styles.disabledButton }}>
             Battles
           </button>
         )}
+        <Link to="/projects/ExpeditionBounties" style={styles.button}>
+          Bounties
+        </Link>
+        <Link to="/projects/ExpeditionShop" style={styles.button}>
+          Shop
+        </Link>
+        <Link to={{ pathname: '/projects/ExpeditionTeams', search: teamSearch }} style={{ ...styles.button, gridColumn: '1 / -1' }}>
+          Team Management
+        </Link>
       </div>
       {canManage && settingsOpen && (
         <ExpeditionSettings role={session.access.role} round={round} onRoundChange={setRound}

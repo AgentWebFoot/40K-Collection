@@ -393,6 +393,120 @@ test('Expedition Battles can be paused without losing reports or changing other 
   assert.equal(map.teamStats.red.campaignPoints, 5);
 });
 
+test('Expedition Backrooms restricts catalog management and migrates existing shop listings', async () => {
+  const db = createAccountStore();
+  const member = db.save(account('user', 'Quartermaster'));
+  db.assignExpedition(member.id, 'admin', '');
+  const manager = account('user', 'Quartermaster');
+  const viewer = account('user');
+  const owner = account('owner');
+  const browserStorage = storage();
+  const legacy = { id: 'legacy', name: 'Compass', description: 'Find your way.', cost: 0, visible: true };
+  browserStorage.setItem('expedition-preview-shop', JSON.stringify([legacy]));
+  let api = createExpeditionApi({ tiles: [] }, db, browserStorage);
+  const shop = (user, method, body) => expeditionCall(api, user, '/shop', method, body);
+  const listing = { name: ' Survey kit ', description: ' Equipment for scouting. ', cost: 12 };
+
+  assert.equal((await shop(viewer, 'POST', listing)).status, 403);
+  for (const fields of [{ name: ' ' }, { description: ' ' }, { cost: -1 }, { cost: 0.5 }, { cost: '12' }]) {
+    assert.equal((await shop(manager, 'POST', { ...listing, ...fields })).status, 400);
+  }
+  const created = await shop(manager, 'POST', listing);
+  assert.equal(created.status, 201);
+  const { items: [migrated, item] } = await created.json();
+  assert.deepEqual(migrated, { ...legacy, perUser: 1, remaining: null, owned: 0 });
+  assert.deepEqual(item, { id: item.id, name: 'Survey kit', description: 'Equipment for scouting.', cost: 12, visible: false, perUser: 1, remaining: null, owned: 0 });
+  assert.deepEqual(await (await shop(viewer)).json(), { items: [migrated], canManage: false, canPurchase: false, credits: null });
+  assert.deepEqual((await (await shop(owner)).json()).items, [migrated, item]);
+  const stock = { perUser: null, total: 3 };
+  assert.equal((await shop(viewer, 'PATCH', { id: item.id, stock })).status, 403);
+  assert.equal((await shop(manager, 'PATCH', { id: 'missing', stock })).status, 404);
+  assert.equal((await shop(manager, 'PATCH', { id: item.id, stock: { perUser: 0, total: null } })).status, 400);
+  assert.equal((await shop(manager, 'PATCH', { id: item.id, stock })).status, 200);
+  const stocked = { ...item, visible: true, perUser: null, remaining: 3 };
+  assert.deepEqual((await (await shop(viewer)).json()).items, [migrated, stocked]);
+
+  api = createExpeditionApi({ tiles: [] }, db, browserStorage);
+  assert.deepEqual((await (await shop(viewer)).json()).items, [migrated, stocked]);
+  assert.equal((await shop(owner, 'PATCH', { id: item.id, visible: false })).status, 200);
+  assert.deepEqual((await (await shop(viewer)).json()).items, [migrated]);
+  assert.deepEqual((await (await shop(manager)).json()).items, [migrated, { ...stocked, visible: false }]);
+});
+
+test('Expedition purchases spend shared credits, enforce stock and per-user limits, and persist equipment', async () => {
+  const db = createAccountStore();
+  const alice = db.save(account('user'));
+  const bob = db.save(account('user', 'Bob'));
+  const carol = db.save(account('user', 'Carol'));
+  db.assignExpedition(alice.id, 'traveler', 'red');
+  db.assignExpedition(bob.id, 'traveler', 'red');
+  db.assignExpedition(carol.id, 'traveler', 'blue');
+  const admin = account('admin');
+  const disk = storage();
+  let failWrite = false;
+  const browserStorage = {
+    getItem: disk.getItem,
+    setItem(key, value) {
+      if (failWrite) throw new Error('Storage full');
+      disk.setItem(key, value);
+    },
+  };
+  const seed = { tiles: [], teamStats: { red: { credits: 24 }, blue: { credits: 1 } } };
+  let api = createExpeditionApi(seed, db, browserStorage);
+  const call = (user, path, method, body) => expeditionCall(api, user, path, method, body);
+  const { items: [listing] } = await (await call(admin, '/shop', 'POST', {
+    name: 'Medkit', description: 'Treat an injury.', cost: 6,
+  })).json();
+  const buy = (buyer, quantity = 1) => call(buyer, '/shop/purchase', 'POST', { id: listing.id, quantity });
+  const stock = (perUser, total) => call(admin, '/shop', 'PATCH', { id: listing.id, stock: { perUser, total } });
+  const roster = async name => (await (await call(admin, '/teams')).json()).teams.find(team => team.name === name);
+  assert.equal((await buy(alice)).status, 404);
+  assert.equal((await stock(1, 3)).status, 200);
+  assert.equal((await buy(account('user', 'Unassigned'))).status, 403);
+  assert.equal((await buy(carol)).status, 409);
+  assert.equal((await buy(alice, 0)).status, 400);
+  assert.equal((await buy(alice, 2)).status, 409);
+  assert.equal((await call(alice, '/teams/red/items', 'POST', { name: 'Radio' })).status, 201);
+  failWrite = true;
+  assert.equal((await buy(alice)).status, 500);
+  failWrite = false;
+  assert.equal((await roster('red')).points.credits, 24);
+  assert.deepEqual((await roster('red')).items.map(item => item.name), ['Radio']);
+  assert.equal((await (await call(alice, '/shop')).json()).items[0].remaining, 3);
+  const results = await Promise.all([buy(alice), buy(alice)]);
+  assert.deepEqual(results.map(result => result.status).sort(), [201, 409]);
+  const red = await roster('red');
+  assert.equal(red.points.credits, 18);
+  assert.equal(red.items.length, 2);
+  const item = red.items.find(entry => entry.name === 'Medkit');
+  assert.deepEqual(item, { id: item.id, name: 'Medkit', description: 'Treat an injury.', quantity: 1 });
+  assert.deepEqual((await roster('blue')).items, []);
+
+  assert.equal((await buy(bob)).status, 201);
+  const capped = await buy(alice);
+  assert.equal(capped.status, 409);
+  assert.match((await capped.json()).message, /exceeds your limit/);
+  assert.equal((await stock(2, 1)).status, 200);
+  assert.equal((await buy(alice)).status, 201);
+  assert.equal((await (await call(alice, '/shop')).json()).items[0].remaining, 0);
+  assert.equal((await buy(alice)).status, 409);
+
+  api = createExpeditionApi(seed, db, browserStorage);
+  assert.equal((await roster('red')).points.credits, 6);
+  assert.deepEqual((await roster('red')).items.map(entry => entry.name), ['Radio', 'Medkit', 'Medkit', 'Medkit']);
+  assert.equal((await stock(null, null)).status, 200);
+  assert.equal((await buy(alice, 2)).status, 409);
+  assert.equal((await buy(alice)).status, 201);
+  const emptyBalance = (await roster('red')).points;
+  assert.equal(emptyBalance.credits, 0);
+  assert.equal((await (await call(alice, '/shop')).json()).items[0].remaining, null);
+  assert.equal((await call(admin, '/teams/red/points', 'POST', {
+    points: { ...emptyBalance, credits: 12 }, expectedPoints: emptyBalance,
+  })).status, 200);
+  assert.equal((await buy(alice, 2)).status, 201);
+  assert.ok((await roster('red')).items.some(entry => entry.name === 'Medkit' && entry.quantity === 2));
+});
+
 test('Expedition travelers can add units and items only to their assigned roster', async () => {
   const db = createAccountStore();
   const alice = db.save(account('user'));
@@ -471,6 +585,44 @@ test('Expedition team names can be changed without changing team colors or roste
   assert.equal(red.units[0].name, 'Scout');
   assert.equal(teams.find(team => team.name === 'blue').displayName, 'Harbor Guard');
   assert.equal(teams.find(team => team.name === 'green').displayName, undefined);
+});
+
+test('Expedition lore respects roster permissions and persists independently for each team', async () => {
+  const db = createAccountStore();
+  const traveler = db.save(account('user'));
+  db.assignExpedition(traveler.id, 'traveler', 'red');
+  const viewer = account('user', 'Viewer');
+  const admin = account('admin');
+  const browserStorage = storage();
+  const seed = { tiles: [] };
+  const roster = { displayName: 'Night Scouts', units: [{ id: 'unit', name: 'Scout' }], items: [{ id: 'item', name: 'Radio' }] };
+  browserStorage.setItem('expedition-preview-roster-red', JSON.stringify(roster));
+  let api = createExpeditionApi(seed, db, browserStorage);
+  const save = (user, team, lore, expectedLore = '') =>
+    expeditionCall(api, user, `/teams/${team}/lore`, 'POST', { lore, expectedLore });
+  const lore = 'The Scouts guard the canyon.\n\nTheir camp is hidden.';
+
+  assert.equal((await save(viewer, 'red', lore)).status, 403);
+  assert.equal((await save(traveler, 'blue', lore)).status, 403);
+  assert.equal((await save(traveler, 'red', null)).status, 400);
+  const saved = await save(traveler, 'red', `  ${lore}  `);
+  assert.equal(saved.status, 200);
+  assert.deepEqual(await saved.json(), { lore });
+  const stale = await save(admin, 'red', 'Stale edit');
+  assert.equal(stale.status, 409);
+  assert.equal((await stale.json()).lore, lore);
+  assert.equal((await save(admin, 'blue', 'The Harbor Guard watch the docks.')).status, 200);
+
+  api = createExpeditionApi(seed, db, browserStorage);
+  const { teams } = await (await expeditionCall(api, viewer, '/teams')).json();
+  const red = teams.find(team => team.name === 'red');
+  assert.equal(red.lore, lore);
+  assert.equal(red.displayName, roster.displayName);
+  assert.deepEqual(red.units, roster.units);
+  assert.deepEqual(red.items, roster.items);
+  assert.equal(teams.find(team => team.name === 'blue').lore, 'The Harbor Guard watch the docks.');
+  assert.equal((await save(traveler, 'red', '', lore)).status, 200);
+  assert.equal(JSON.parse(browserStorage.getItem('expedition-preview-roster-red')).lore, '');
 });
 
 test('Expedition units require four valid stats and preserve older roster entries', async () => {

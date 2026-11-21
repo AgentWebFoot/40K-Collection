@@ -359,84 +359,6 @@
                 margin-top: 8px;
             }
 
-            .bounty-card {
-                display: grid;
-                gap: 10px;
-            }
-
-            .bounty-meta {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                gap: 8px 12px;
-                font-size: 0.88rem;
-            }
-
-            .bounty-meta strong {
-                display: block;
-                margin-bottom: 2px;
-            }
-
-            .bounty-progress-summary {
-                font-size: 0.9rem;
-                color: #d8d8d8;
-            }
-
-            .bounty-actions {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-
-            .bounty-progress-form {
-                display: grid;
-                gap: 10px;
-                padding: 10px;
-                border: 1px solid #555;
-                border-radius: 8px;
-                background: rgba(255, 255, 255, 0.04);
-            }
-
-            .bounty-wide-textarea {
-                display: block;
-                width: 100%;
-                min-height: 140px;
-                resize: none;
-            }
-
-            .bounty-status-note {
-                font-size: 0.88rem;
-                color: #cfcfcf;
-            }
-
-            .bounty-section {
-                margin-top: 18px;
-            }
-
-            .bounty-create-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                gap: 10px 14px;
-                margin-top: 10px;
-            }
-
-            .bounty-create-grid .full-width {
-                grid-column: 1 / -1;
-            }
-
-            .bounty-access-list {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-                gap: 8px 12px;
-                margin-top: 6px;
-            }
-
-            .bounty-access-list label {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                margin: 0;
-            }
-
             .request-card {
                 padding: 12px;
                 border: 1px solid #555;
@@ -505,28 +427,16 @@
                 top: 10px;
             }
 
-            .bounty-button-anchor {
-                top: 106px;
-            }
-
-            .bounty-button-anchor.bounty-button-secondary-slot {
-                top: 58px;
-            }
-
-            .bounty-button-anchor.bounty-button-primary-slot {
-                top: 10px;
-            }
-
             .player-button-anchor {
-                top: 154px;
-            }
-
-            .player-button-anchor.player-button-tertiary-slot {
                 top: 106px;
             }
 
             .player-button-anchor.player-button-secondary-slot {
                 top: 58px;
+            }
+
+            .player-button-anchor.player-button-primary-slot {
+                top: 10px;
             }
 
             .history-button-icon {
@@ -540,24 +450,6 @@
             }
 
             .history-button-icon .history-page-line {
-                fill: none;
-                stroke: #111;
-                stroke-width: 1.75;
-                stroke-linecap: round;
-                stroke-linejoin: round;
-            }
-
-            .bounty-button-icon {
-                width: 20px;
-                height: 20px;
-                display: block;
-            }
-
-            .bounty-button-icon .bounty-icon-fill {
-                fill: #f6f6f6;
-            }
-
-            .bounty-button-icon .bounty-icon-line {
                 fill: none;
                 stroke: #111;
                 stroke-width: 1.75;
@@ -607,7 +499,7 @@
                 box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
             }
 
-            .bounty-modal-card {
+            .player-info-modal-card {
                 overflow-y: auto;
                 overscroll-behavior: contain;
             }
@@ -1286,17 +1178,6 @@
                         <path class="history-page-line" d="M8.5 18h5"></path>
                     </svg>
                 </button>
-                <button id="openExpeditionBountyButton" class="settings-gear-button settings-gear-anchor bounty-button-anchor" type="button" onclick="openExpeditionBountyModal()" aria-label="Open Expedition bounties" title="Bounties">
-                    <svg class="bounty-button-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle class="bounty-icon-fill" cx="12" cy="12" r="7.5"></circle>
-                        <circle class="bounty-icon-line" cx="12" cy="12" r="7.5"></circle>
-                        <circle class="bounty-icon-line" cx="12" cy="12" r="3.25"></circle>
-                        <path class="bounty-icon-line" d="M12 2.75v3"></path>
-                        <path class="bounty-icon-line" d="M12 18.25v3"></path>
-                        <path class="bounty-icon-line" d="M2.75 12h3"></path>
-                        <path class="bounty-icon-line" d="M18.25 12h3"></path>
-                    </svg>
-                </button>
                 <button id="openExpeditionPlayerInfoButton" class="settings-gear-button settings-gear-anchor player-button-anchor" type="button" onclick="openExpeditionPlayerInfoModal()" aria-label="Open Expedition player information" title="Players">
                     <svg class="player-button-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <circle class="player-icon-fill" cx="12" cy="7.25" r="3.4"></circle>
@@ -1445,70 +1326,8 @@
                 </div>
             </div>
 
-            <div id="expeditionBountyModal" class="modal-overlay hidden" onclick="handleExpeditionBountyOverlayClick(event)">
-                <div class="modal-card bounty-modal-card" role="dialog" aria-modal="true" aria-labelledby="expeditionBountyTitle">
-                    <div class="modal-header">
-                        <div>
-                            <h3 id="expeditionBountyTitle">Expedition Bounties</h3>
-                        </div>
-                        <button class="modal-close-button" type="button" onclick="closeExpeditionBountyModal()" aria-label="Close bounties">&times;</button>
-                    </div>
-                    <div class="settings-header-actions">
-                        <div id="expeditionBountyStatus" class="helper-text">Loading Expedition bounties...</div>
-                        <button id="refreshExpeditionBountyButton" type="button" onclick="loadExpeditionBounties()">Refresh Bounties</button>
-                    </div>
-                    <div id="expeditionBountyCreateSection" class="bounty-section hidden">
-                        <h4>Create Bounty</h4>
-                        <div class="bounty-create-grid">
-                            <label>
-                                <h4>Name:</h4>
-                                <input id="expeditionBountyNameInput" type="text" maxlength="120" placeholder="Bounty name">
-                            </label>
-                            <label>
-                                <h4>Supply Reward:</h4>
-                                <input id="expeditionBountySupplyRewardInput" type="number" min="0" max="10" step="1" value="0">
-                            </label>
-                            <label>
-                                <h4>Campaign Reward:</h4>
-                                <input id="expeditionBountyCampaignRewardInput" type="number" min="0" step="1" value="0">
-                            </label>
-                            <label>
-                                <h4>Claim Slots:</h4>
-                                <input id="expeditionBountyMaxClaimantsInput" type="number" min="1" step="1" value="1">
-                            </label>
-                            <label>
-                                <h4>Progress Max:</h4>
-                                <input id="expeditionBountyProgressMaxInput" type="number" min="0" step="1" value="0">
-                            </label>
-                            <div class="full-width">
-                                <h4>Eligible Teams:</h4>
-                                <div id="expeditionBountyAllowedTeamsList" class="bounty-access-list"></div>
-                                <div class="helper-text">Leave every team unchecked to make the bounty available to all teams.</div>
-                            </div>
-                            <label class="full-width">
-                                <h4>Description:</h4>
-                                <textarea id="expeditionBountyDescriptionInput" class="bounty-wide-textarea" maxlength="2000" placeholder="Describe how this bounty is completed."></textarea>
-                            </label>
-                        </div>
-                        <button id="createExpeditionBountyButton" type="button" onclick="createExpeditionBounty()">Create Bounty</button>
-                    </div>
-                    <div class="bounty-section">
-                        <h4>Available Bounties</h4>
-                        <div id="expeditionBountyList" class="request-list">
-                            <div class="request-card"><p>Loading Expedition bounties...</p></div>
-                        </div>
-                    </div>
-                    <div id="expeditionBountyRequestReviewSection" class="bounty-section hidden">
-                        <h4>Pending Bounty Requests</h4>
-                        <div id="expeditionBountyRequestList" class="request-list">
-                            <div class="request-card"><p>No pending bounty requests.</p></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div id="expeditionPlayerInfoModal" class="modal-overlay hidden" onclick="handleExpeditionPlayerInfoOverlayClick(event)">
-                <div class="modal-card bounty-modal-card" role="dialog" aria-modal="true" aria-labelledby="expeditionPlayerInfoTitle">
+                <div class="modal-card player-info-modal-card" role="dialog" aria-modal="true" aria-labelledby="expeditionPlayerInfoTitle">
                     <div class="modal-header">
                         <div>
                             <h3 id="expeditionPlayerInfoTitle">All Player Information</h3>
@@ -1813,10 +1632,6 @@
             let isLoadingExpeditionHistory = false;
             let expeditionHistoryRequestTypeFilterValue = '';
             let expeditionHistoryTeamFilterValue = '';
-            let expeditionBounties = [];
-            let expeditionBountyPendingRequests = [];
-            let isLoadingExpeditionBounties = false;
-            let activeExpeditionBountyProgressFormId = null;
             let resupplyActionPrepared = false;
             let resupplyActionRolled = false;
             let resupplyActionPoints = 0;
@@ -1924,7 +1739,6 @@
             const myRequestList = document.getElementById("myRequestList");
             const openExpeditionSettingsButton = document.getElementById("openExpeditionSettingsButton");
             const openExpeditionHistoryButton = document.getElementById("openExpeditionHistoryButton");
-            const openExpeditionBountyButton = document.getElementById("openExpeditionBountyButton");
             const openExpeditionPlayerInfoButton = document.getElementById("openExpeditionPlayerInfoButton");
             const expeditionSettingsModal = document.getElementById("expeditionSettingsModal");
             const expeditionSettingsStatus = document.getElementById("expeditionSettingsStatus");
@@ -1943,21 +1757,6 @@
             const expeditionHistoryTeamFilter = document.getElementById("expeditionHistoryTeamFilter");
             const expeditionHistoryList = document.getElementById("expeditionHistoryList");
             const refreshExpeditionHistoryButton = document.getElementById("refreshExpeditionHistoryButton");
-            const expeditionBountyModal = document.getElementById("expeditionBountyModal");
-            const expeditionBountyStatus = document.getElementById("expeditionBountyStatus");
-            const refreshExpeditionBountyButton = document.getElementById("refreshExpeditionBountyButton");
-            const expeditionBountyCreateSection = document.getElementById("expeditionBountyCreateSection");
-            const expeditionBountyNameInput = document.getElementById("expeditionBountyNameInput");
-            const expeditionBountyDescriptionInput = document.getElementById("expeditionBountyDescriptionInput");
-            const expeditionBountySupplyRewardInput = document.getElementById("expeditionBountySupplyRewardInput");
-            const expeditionBountyCampaignRewardInput = document.getElementById("expeditionBountyCampaignRewardInput");
-            const expeditionBountyMaxClaimantsInput = document.getElementById("expeditionBountyMaxClaimantsInput");
-            const expeditionBountyProgressMaxInput = document.getElementById("expeditionBountyProgressMaxInput");
-            const expeditionBountyAllowedTeamsList = document.getElementById("expeditionBountyAllowedTeamsList");
-            const createExpeditionBountyButton = document.getElementById("createExpeditionBountyButton");
-            const expeditionBountyList = document.getElementById("expeditionBountyList");
-            const expeditionBountyRequestReviewSection = document.getElementById("expeditionBountyRequestReviewSection");
-            const expeditionBountyRequestList = document.getElementById("expeditionBountyRequestList");
             const expeditionPlayerInfoModal = document.getElementById("expeditionPlayerInfoModal");
             const expeditionPlayerInfoList = document.getElementById("expeditionPlayerInfoList");
             const teamStatList = document.getElementById("teamStatList");
@@ -4343,107 +4142,6 @@
                 }
             }
 
-            function normalizeExpeditionBountyMaxClaimantsValue(value) {
-                const numericValue = Number(value);
-                return Number.isInteger(numericValue) && numericValue >= 1
-                    ? Math.min(99, numericValue)
-                    : 1;
-            }
-
-            function normalizeExpeditionBountyProgressMaxValue(value) {
-                const numericValue = Number(value);
-                return Number.isInteger(numericValue) && numericValue >= 0
-                    ? Math.min(999, numericValue)
-                    : 0;
-            }
-
-            function normalizeExpeditionBountyAllowedTeamsValue(allowedTeams) {
-                if (!Array.isArray(allowedTeams)) {
-                    return [];
-                }
-
-                return [...new Set(allowedTeams.map((team) => normalizeMarker(team)).filter(Boolean))];
-            }
-
-            function formatExpeditionBountyAccessLabel(allowedTeams) {
-                const normalizedTeams = normalizeExpeditionBountyAllowedTeamsValue(allowedTeams);
-                return normalizedTeams.length === 0
-                    ? 'All Teams'
-                    : normalizedTeams.map((team) => formatExpeditionTeamLabel(team)).join(', ');
-            }
-
-            function renderExpeditionBountyAllowedTeamOptions() {
-                if (!expeditionBountyAllowedTeamsList) {
-                    return;
-                }
-
-                expeditionBountyAllowedTeamsList.innerHTML = EXPEDITION_TEAMS.map(({ value }) => `
-                    <label>
-                        <input type="checkbox" value="${escapeHtml(value)}" data-expedition-bounty-allowed-team>
-                        <span>${escapeHtml(formatExpeditionTeamLabel(value))}</span>
-                    </label>
-                `).join('');
-            }
-
-            function getSelectedExpeditionBountyAllowedTeams() {
-                if (!expeditionBountyAllowedTeamsList) {
-                    return [];
-                }
-
-                return normalizeExpeditionBountyAllowedTeamsValue(
-                    Array.from(expeditionBountyAllowedTeamsList.querySelectorAll('[data-expedition-bounty-allowed-team]:checked'))
-                        .map((input) => input.value)
-                );
-            }
-
-            function clearSelectedExpeditionBountyAllowedTeams() {
-                expeditionBountyAllowedTeamsList?.querySelectorAll('[data-expedition-bounty-allowed-team]').forEach((input) => {
-                    input.checked = false;
-                });
-            }
-
-            function getExpeditionBountyById(bountyId) {
-                return expeditionBounties.find((bounty) => Number(bounty.id) === Number(bountyId)) || null;
-            }
-
-            function renderExpeditionBountyRequestReviewList() {
-                if (!expeditionBountyRequestReviewSection || !expeditionBountyRequestList) {
-                    return;
-                }
-
-                expeditionBountyRequestReviewSection.classList.toggle('hidden', !isAdminReviewer);
-                if (!isAdminReviewer) {
-                    return;
-                }
-
-                if (expeditionBountyPendingRequests.length === 0) {
-                    expeditionBountyRequestList.innerHTML = '<div class="request-card"><p>No pending bounty requests.</p></div>';
-                    return;
-                }
-
-                expeditionBountyRequestList.innerHTML = expeditionBountyPendingRequests.map((request) => {
-                    const bounty = getExpeditionBountyById(request.bountyId);
-                    const requestType = String(request.request?.requestType || '').toLowerCase();
-                    const requestTypeLabel = requestType === 'claim' ? 'Claim' : 'Progress';
-                    const progressAmount = normalizeTeamPointValue(request.request?.progressAmount);
-
-                    return `
-                        <div class="request-card">
-                            <p><strong>Bounty:</strong> ${escapeHtml(bounty?.name || `Bounty #${request.bountyId}`)}</p>
-                            <p><strong>Traveler:</strong> ${escapeHtml(request.requesterUsername || 'Unknown')}</p>
-                            <p><strong>Type:</strong> ${escapeHtml(requestTypeLabel)}</p>
-                            ${requestType === 'progress' ? `<p><strong>Progress Increase:</strong> ${escapeHtml(String(progressAmount))}</p>` : ''}
-                            <p><strong>Submitted Round:</strong> ${escapeHtml(String(normalizeRoundValue(request.request?.submissionRound)))}</p>
-                            ${request.request?.comment ? `<p><strong>Comment:</strong> ${escapeHtml(request.request.comment)}</p>` : ''}
-                            <div class="request-actions">
-                                <button type="button" onclick="acceptExpeditionBountyRequest(${request.id})">Accept Request</button>
-                                <button type="button" onclick="denyExpeditionBountyRequest(${request.id})">Deny Request</button>
-                            </div>
-                        </div>
-                    `;
-                    }).join('');
-            }
-
             function renderTeamStatistics() {
                 if (teamStatList) {
                     teamStatList.innerHTML = buildTeamStatisticsMarkup(
@@ -4457,174 +4155,6 @@
                         EXPEDITION_TEAMS.map(({ value }) => value),
                         { editable: false }
                     );
-                }
-            }
-
-            function renderExpeditionBounties() {
-                if (!expeditionBountyList) {
-                    return;
-                }
-
-                expeditionBountyCreateSection?.classList.toggle('hidden', !isAdminReviewer);
-                renderExpeditionBountyRequestReviewList();
-
-                if (expeditionBounties.length === 0) {
-                    expeditionBountyList.innerHTML = '<div class="request-card"><p>No Expedition bounties have been created yet.</p></div>';
-                    return;
-                }
-
-                expeditionBountyList.innerHTML = expeditionBounties.map((bounty) => {
-                    const progressMax = normalizeExpeditionBountyProgressMaxValue(bounty.progressMax);
-                    const myProgress = {
-                        progress: normalizeExpeditionBountyProgressMaxValue(bounty.myProgress?.progress),
-                        isClaimed: Boolean(bounty.myProgress?.isClaimed),
-                        claimedAt: bounty.myProgress?.claimedAt || null,
-                    };
-                    const claimCount = normalizeTeamPointValue(bounty.claimCount);
-                    const maxClaimants = normalizeExpeditionBountyMaxClaimantsValue(bounty.maxClaimants);
-                    const allowedTeams = normalizeExpeditionBountyAllowedTeamsValue(bounty.allowedTeams);
-                    const bountyAccessLabel = formatExpeditionBountyAccessLabel(allowedTeams);
-                    const myPendingRequest = bounty.myPendingRequest || null;
-                    const isOpen = Boolean(bounty.isActive) && claimCount < maxClaimants;
-                    const canTravelerAct = isTravelerEditor && Boolean(expeditionTeam) && bounty.canAccess !== false;
-                    const canSendProgressRequest = canTravelerAct
-                        && isOpen
-                        && !myProgress.isClaimed
-                        && !myPendingRequest
-                        && progressMax > 0
-                        && myProgress.progress < progressMax;
-                    const canSendClaimRequest = canTravelerAct
-                        && isOpen
-                        && !myProgress.isClaimed
-                        && !myPendingRequest
-                        && (progressMax === 0 || myProgress.progress >= progressMax);
-                    const showProgressForm = canSendProgressRequest && activeExpeditionBountyProgressFormId === bounty.id;
-                    const pendingRequestLabel = myPendingRequest
-                        ? (String(myPendingRequest.request?.requestType || '').toLowerCase() === 'claim'
-                            ? 'You already have a pending claim request for this bounty.'
-                            : 'You already have a pending progress request for this bounty.')
-                        : '';
-                    const progressSummary = progressMax > 0
-                        ? `${myProgress.progress} / ${progressMax}`
-                        : 'No progress tracker required';
-
-                    return `
-                        <div class="request-card bounty-card">
-                            <p><strong>${escapeHtml(bounty.name || 'Untitled Bounty')}</strong></p>
-                            ${bounty.description ? `<p>${escapeHtml(bounty.description)}</p>` : '<p>No description provided.</p>'}
-                            <div class="bounty-meta">
-                                <div><strong>Supply Reward</strong><span>${escapeHtml(String(normalizeSupplyPointValue(bounty.supplyPointsReward)))}</span></div>
-                                <div><strong>Campaign Reward</strong><span>${escapeHtml(String(normalizeTeamPointValue(bounty.campaignPointsReward)))}</span></div>
-                                <div><strong>Claims</strong><span>${escapeHtml(`${claimCount} / ${maxClaimants}`)}</span></div>
-                                <div><strong>Eligible Teams</strong><span>${escapeHtml(bountyAccessLabel)}</span></div>
-                                <div><strong>Created By</strong><span>${escapeHtml(bounty.createdByUsername || 'Unknown')}</span></div>
-                            </div>
-                            <div class="bounty-progress-summary">
-                                <strong>Your Progress:</strong> ${escapeHtml(progressSummary)}
-                            </div>
-                            ${myProgress.claimedAt ? `<div class="bounty-status-note">Claimed on ${escapeHtml(new Date(myProgress.claimedAt).toLocaleString())}.</div>` : ''}
-                            ${!isOpen ? '<div class="bounty-status-note">This bounty is closed.</div>' : ''}
-                            ${pendingRequestLabel ? `<div class="bounty-status-note">${escapeHtml(pendingRequestLabel)}</div>` : ''}
-                            ${showProgressForm ? `
-                                <div class="bounty-progress-form">
-                                    <label>
-                                        <h4>Progress Increase:</h4>
-                                        <input id="expeditionBountyProgressAmount-${escapeHtml(String(bounty.id))}" type="number" min="1" step="1" value="1">
-                                    </label>
-                                    <label>
-                                        <h4>Progress Comment:</h4>
-                                        <textarea id="expeditionBountyProgressComment-${escapeHtml(String(bounty.id))}" class="bounty-wide-textarea" maxlength="1000" placeholder="Describe the progress you made on this bounty."></textarea>
-                                    </label>
-                                    <div class="bounty-actions">
-                                        <button type="button" onclick="submitExpeditionBountyProgressRequest(${bounty.id})">Send Progress Request</button>
-                                        <button type="button" onclick="toggleExpeditionBountyProgressForm(${bounty.id})">Cancel</button>
-                                    </div>
-                                </div>
-                            ` : ''}
-                            <div class="bounty-actions">
-                                ${canSendProgressRequest ? `<button type="button" onclick="toggleExpeditionBountyProgressForm(${bounty.id})">${showProgressForm ? 'Hide Progress Form' : 'Update Progress'}</button>` : ''}
-                                ${canSendClaimRequest ? `<button type="button" onclick="submitExpeditionBountyClaimRequest(${bounty.id})">Send Claim Request</button>` : ''}
-                                ${isAdminReviewer ? `<button type="button" onclick="deleteExpeditionBounty(${bounty.id})">Delete Bounty</button>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            function setExpeditionBountyLoadingState(nextLoadingState) {
-                isLoadingExpeditionBounties = Boolean(nextLoadingState);
-                if (refreshExpeditionBountyButton) {
-                    refreshExpeditionBountyButton.disabled = isLoadingExpeditionBounties;
-                    refreshExpeditionBountyButton.textContent = isLoadingExpeditionBounties ? 'Refreshing...' : 'Refresh Bounties';
-                }
-                if (createExpeditionBountyButton) {
-                    createExpeditionBountyButton.disabled = isLoadingExpeditionBounties;
-                }
-            }
-
-            function setExpeditionBountyStatus(message) {
-                if (expeditionBountyStatus) {
-                    expeditionBountyStatus.textContent = message;
-                }
-            }
-
-            async function loadExpeditionBounties() {
-                if (isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                setExpeditionBountyLoadingState(true);
-                setExpeditionBountyStatus('Loading Expedition bounties...');
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/list', {
-                        method: 'POST',
-                    });
-
-                    if (!response.ok) {
-                        expeditionBounties = [];
-                        expeditionBountyPendingRequests = [];
-                        renderExpeditionBounties();
-                        setExpeditionBountyStatus(payload.message || 'Unable to load Expedition bounties right now.');
-                        return;
-                    }
-
-                    expeditionBounties = Array.isArray(payload.bounties) ? payload.bounties : [];
-                    expeditionBountyPendingRequests = Array.isArray(payload.pendingRequests) ? payload.pendingRequests : [];
-                    renderExpeditionBounties();
-                    setExpeditionBountyStatus('Open bounties and pending bounty requests.');
-                } catch (_error) {
-                    expeditionBounties = [];
-                    expeditionBountyPendingRequests = [];
-                    renderExpeditionBounties();
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
-                } finally {
-                    setExpeditionBountyLoadingState(false);
-                }
-            }
-
-            function openExpeditionBountyModal() {
-                if (!expeditionBountyModal) {
-                    return;
-                }
-
-                expeditionBountyModal.classList.remove('hidden');
-                const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
-                syncRewardDefault(expeditionBountySupplyRewardInput, 'bounty', rewards.bountySupply);
-                syncRewardDefault(expeditionBountyCampaignRewardInput, 'bounty', rewards.bountyCampaign);
-                renderExpeditionBountyAllowedTeamOptions();
-                renderExpeditionBounties();
-                loadExpeditionBounties();
-            }
-
-            function closeExpeditionBountyModal() {
-                expeditionBountyModal?.classList.add('hidden');
-                activeExpeditionBountyProgressFormId = null;
-            }
-
-            function handleExpeditionBountyOverlayClick(event) {
-                if (event.target === expeditionBountyModal) {
-                    closeExpeditionBountyModal();
                 }
             }
 
@@ -4644,202 +4174,6 @@
             function handleExpeditionPlayerInfoOverlayClick(event) {
                 if (event.target === expeditionPlayerInfoModal) {
                     closeExpeditionPlayerInfoModal();
-                }
-            }
-
-            async function createExpeditionBounty() {
-                if (!isAdminReviewer || isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/create', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            bounty: {
-                                name: expeditionBountyNameInput?.value || '',
-                                description: expeditionBountyDescriptionInput?.value || '',
-                                supplyPointsReward: expeditionBountySupplyRewardInput?.value || 0,
-                                campaignPointsReward: expeditionBountyCampaignRewardInput?.value || 0,
-                                maxClaimants: expeditionBountyMaxClaimantsInput?.value || 1,
-                                progressMax: expeditionBountyProgressMaxInput?.value || 0,
-                                allowedTeams: getSelectedExpeditionBountyAllowedTeams(),
-                            },
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionBountyStatus(payload.message || 'Unable to create the Expedition bounty right now.');
-                        return;
-                    }
-
-                    if (expeditionBountyNameInput) expeditionBountyNameInput.value = '';
-                    if (expeditionBountyDescriptionInput) expeditionBountyDescriptionInput.value = '';
-                    const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
-                    expeditionBountySupplyRewardInput.value = String(rewards.bountySupply);
-                    expeditionBountyCampaignRewardInput.value = String(rewards.bountyCampaign);
-                    if (expeditionBountyMaxClaimantsInput) expeditionBountyMaxClaimantsInput.value = '1';
-                    if (expeditionBountyProgressMaxInput) expeditionBountyProgressMaxInput.value = '0';
-                    clearSelectedExpeditionBountyAllowedTeams();
-
-                    setExpeditionBountyStatus(payload.message || 'Expedition bounty created.');
-                    await loadExpeditionBounties();
-                } catch (_error) {
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
-                }
-            }
-
-            async function deleteExpeditionBounty(bountyId) {
-                if (!isAdminReviewer || isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                const bounty = getExpeditionBountyById(bountyId);
-                const bountyName = bounty?.name || `Bounty #${bountyId}`;
-                if (!confirm(`Delete "${bountyName}"? This will remove its pending requests and progress.`)) {
-                    return;
-                }
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/delete', {
-                        method: 'POST',
-                        body: JSON.stringify({ bountyId }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionBountyStatus(payload.message || 'Unable to delete the Expedition bounty right now.');
-                        return;
-                    }
-
-                    if (activeExpeditionBountyProgressFormId === bountyId) {
-                        activeExpeditionBountyProgressFormId = null;
-                    }
-
-                    setExpeditionBountyStatus(payload.message || 'Expedition bounty deleted.');
-                    await loadExpeditionBounties();
-                } catch (_error) {
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
-                }
-            }
-
-            function toggleExpeditionBountyProgressForm(bountyId) {
-                activeExpeditionBountyProgressFormId = activeExpeditionBountyProgressFormId === bountyId ? null : bountyId;
-                renderExpeditionBounties();
-            }
-
-            async function submitExpeditionBountyProgressRequest(bountyId) {
-                if (!isTravelerEditor || isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                const progressAmountInput = document.getElementById(`expeditionBountyProgressAmount-${bountyId}`);
-                const commentInput = document.getElementById(`expeditionBountyProgressComment-${bountyId}`);
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/requests', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            bountyId,
-                            request: {
-                                requestType: 'progress',
-                                progressAmount: progressAmountInput?.value || 1,
-                                comment: commentInput?.value || '',
-                            },
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionBountyStatus(payload.message || 'Unable to submit the bounty progress request right now.');
-                        return;
-                    }
-
-                    activeExpeditionBountyProgressFormId = null;
-                    setExpeditionBountyStatus(payload.message || 'Bounty progress request submitted.');
-                    await loadExpeditionBounties();
-                } catch (_error) {
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
-                }
-            }
-
-            async function submitExpeditionBountyClaimRequest(bountyId) {
-                if (!isTravelerEditor || isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/requests', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            bountyId,
-                            request: {
-                                requestType: 'claim',
-                            },
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionBountyStatus(payload.message || 'Unable to submit the bounty claim request right now.');
-                        return;
-                    }
-
-                    setExpeditionBountyStatus(payload.message || 'Bounty claim request submitted.');
-                    await loadExpeditionBounties();
-                } catch (_error) {
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
-                }
-            }
-
-            async function acceptExpeditionBountyRequest(requestId) {
-                if (!isAdminReviewer || isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/requests/accept', {
-                        method: 'POST',
-                        body: JSON.stringify({ requestId }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionBountyStatus(payload.message || 'Unable to accept the bounty request right now.');
-                        return;
-                    }
-
-                    if (payload.teamStats) {
-                        expeditionTeamStats = normalizeExpeditionTeamStats(payload.teamStats);
-                        if (liveMapData) {
-                            liveMapData.teamStats = normalizeExpeditionTeamStats(payload.teamStats);
-                        }
-                        renderTeamStatistics();
-                    }
-
-                    setExpeditionBountyStatus(payload.message || 'Bounty request accepted.');
-                    await loadExpeditionBounties();
-                } catch (_error) {
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
-                }
-            }
-
-            async function denyExpeditionBountyRequest(requestId) {
-                if (!isAdminReviewer || isLoadingExpeditionBounties) {
-                    return;
-                }
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/bounties/requests/deny', {
-                        method: 'POST',
-                        body: JSON.stringify({ requestId }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionBountyStatus(payload.message || 'Unable to deny the bounty request right now.');
-                        return;
-                    }
-
-                    setExpeditionBountyStatus(payload.message || 'Bounty request denied.');
-                    await loadExpeditionBounties();
-                } catch (_error) {
-                    setExpeditionBountyStatus('Unable to reach the server right now.');
                 }
             }
 
@@ -4875,26 +4209,17 @@
                     openExpeditionHistoryButton.classList.toggle('hidden', !canUseRequestMode());
                     openExpeditionHistoryButton.classList.toggle('history-button-primary-slot', !canManageExpeditionRoles);
                 }
-                if (openExpeditionBountyButton) {
+                if (openExpeditionPlayerInfoButton) {
                     const shouldUsePrimarySlot = !canManageExpeditionRoles && !canUseRequestMode();
                     const shouldUseSecondarySlot = !canManageExpeditionRoles && canUseRequestMode();
-                    openExpeditionBountyButton.classList.toggle('bounty-button-primary-slot', shouldUsePrimarySlot);
-                    openExpeditionBountyButton.classList.toggle('bounty-button-secondary-slot', shouldUseSecondarySlot);
-                }
-                if (openExpeditionPlayerInfoButton) {
-                    const shouldUseSecondarySlot = !canManageExpeditionRoles && !canUseRequestMode();
-                    const shouldUseTertiarySlot = !canManageExpeditionRoles && canUseRequestMode();
                     openExpeditionPlayerInfoButton.classList.toggle('player-button-secondary-slot', shouldUseSecondarySlot);
-                    openExpeditionPlayerInfoButton.classList.toggle('player-button-tertiary-slot', shouldUseTertiarySlot);
+                    openExpeditionPlayerInfoButton.classList.toggle('player-button-primary-slot', shouldUsePrimarySlot);
                 }
                 if (!canManageExpeditionRoles) {
                     closeExpeditionSettingsModal();
                 }
                 if (!canUseRequestMode()) {
                     closeExpeditionHistoryModal();
-                }
-                if (expeditionBountyModal && !expeditionBountyModal.classList.contains('hidden')) {
-                    renderExpeditionBounties();
                 }
                 if (expeditionPlayerInfoModal && !expeditionPlayerInfoModal.classList.contains('hidden')) {
                     renderTeamStatistics();
@@ -6967,7 +6292,6 @@
                 }
             }
 
-            renderExpeditionBountyAllowedTeamOptions();
             bootstrapBoard();
         </script>
     </body>

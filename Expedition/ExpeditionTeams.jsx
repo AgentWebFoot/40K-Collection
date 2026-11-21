@@ -1,11 +1,12 @@
 import { useEffect, useId, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchJson, getAuthEventName } from '../../utils/auth';
 import { unitStatFields } from './unit-stats.mjs';
 import { weaponLimits, weaponTypes } from './weapon-profiles.mjs';
 import { getActionEffects, unitRuleLimits } from './unit-rules.mjs';
 import { prepareUnitImage, unitImageTypes } from './unit-images.mjs';
 import { orderedUnitEntries, unitMoveTarget } from './unit-order.mjs';
+import { getBountyProgress, loadBounties } from './ExpeditionBounties.jsx';
 
 const profileHeaderBackground = '#91421f';
 
@@ -29,16 +30,21 @@ const styles = {
   error: { color: '#ffb5a7', margin: 0 },
   balances: { display: 'flex', flexWrap: 'wrap', gap: '28px', margin: 0 },
   balance: { fontSize: '1.35rem', fontWeight: 700, margin: '4px 0 0', overflowWrap: 'anywhere' },
+  balanceActions: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' },
   teamOverview: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(310px, 100%), 1fr))', gap: '16px' },
+  loreForm: { display: 'grid', gap: '10px', alignItems: 'start' },
   locationList: { display: 'grid', gap: '8px', margin: 0 },
   locationRow: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.25fr)', gap: '8px', fontSize: '0.875rem' },
   locationValue: { margin: 0, fontWeight: 600, overflowWrap: 'anywhere' },
   mapLink: { justifySelf: 'start', textDecoration: 'none', background: 'var(--team-accent)', color: '#171717', fontWeight: 700 },
-  unitList: { display: 'grid', gap: '8px', listStyle: 'none', padding: 0, margin: 0 },
+  rosterList: { display: 'grid', gap: '8px', listStyle: 'none', padding: 0, margin: 0 },
+  rosterEntry: { padding: '8px 10px', border: '1px solid #555', borderRadius: '6px', background: '#242424', overflowWrap: 'anywhere' },
   unitCard: { minWidth: 0, border: '1px solid #444', borderRadius: '6px', overflow: 'hidden' },
   unitHeader: { display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', width: '100%', padding: 0, border: 0, borderRadius: 0, background: profileHeaderBackground, color: 'inherit', textAlign: 'left', font: 'inherit', cursor: 'pointer' },
   unitName: { display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 100px', minWidth: 0, padding: '10px', overflowWrap: 'anywhere' },
   unitDisclosure: { flexShrink: 0, color: 'var(--team-accent)' },
+  sectionToggle: { display: 'inline-flex', alignItems: 'center', gap: '8px', padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer' },
+  sectionBody: { display: 'grid', gap: '14px', minWidth: 0 },
   unitProfile: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', flex: '1 1 176px', minWidth: 0, margin: 0 },
   statCell: { display: 'grid', alignContent: 'start', gap: '3px', padding: '7px 2px', borderInlineStart: '1px solid #444', textAlign: 'center', overflowWrap: 'anywhere' },
   statLabel: { color: '#ccc', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase' },
@@ -662,11 +668,11 @@ function TeamUnits({ team, editing, onChange }) {
   }
 
   return (
-    <section style={styles.card} aria-labelledby="expedition-units">
-      <h2 id="expedition-units" style={styles.heading}>Units</h2>
+    <section id="expedition-units" style={styles.card} aria-labelledby="expedition-units-heading">
+      <h2 id="expedition-units-heading" style={styles.heading}>Units</h2>
       {team.units.length
         ? (
-          <ul style={styles.unitList} role="list">
+          <ul style={styles.rosterList} role="list">
             {team.units.map(entry => (
               <UnitCard key={entry.id} team={team} unit={entry} editing={editing}
                 onUpdate={update => updateUnit(entry.id, update)}
@@ -680,6 +686,132 @@ function TeamUnits({ team, editing, onChange }) {
           onSave={unit => onChange(current => ({ units: [...current.units, unit] }))} />
       )}
     </section>
+  );
+}
+
+function CollapsibleTeamSection({ id, title, linkTo, linkLabel, children }) {
+  const [expanded, setExpanded] = useState(true);
+  const headingId = `${id}-heading`;
+  const bodyId = `${id}-body`;
+
+  return (
+    <section id={id} style={styles.card} aria-labelledby={headingId}>
+      <div style={{ ...styles.ruleSectionHeader, flexWrap: 'wrap' }}>
+        <h2 id={headingId} style={styles.heading}>
+          <button type="button" style={styles.sectionToggle} aria-expanded={expanded} aria-controls={bodyId}
+            onClick={() => setExpanded(current => !current)}>
+            <span aria-hidden="true" style={styles.unitDisclosure}>{expanded ? '▾' : '▸'}</span>
+            {title}
+          </button>
+        </h2>
+        <Link to={linkTo} style={styles.link}>{linkLabel}</Link>
+      </div>
+      <div id={bodyId} hidden={!expanded} style={expanded ? styles.sectionBody : undefined}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function TeamEquipment({ team, editing, onChange }) {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const items = team.items ?? [];
+
+  async function addEquipment(event) {
+    event.preventDefault();
+    const equipmentName = name.trim();
+    if (saving || !editing || !equipmentName) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const { response, payload } = await updateTeam(team.name, 'items', { name: equipmentName });
+      if (!response.ok) throw new Error(payload.message || 'Unable to add equipment.');
+      const item = payload.entry;
+      onChange(current => {
+        const entries = current.items ?? [];
+        return { items: entries.some(entry => entry.id === item.id) ? entries : [...entries, item] };
+      });
+      setName('');
+      setFeedback({ message: `${item.name} added.` });
+    } catch (error) {
+      setFeedback({ error: true, message: error.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <CollapsibleTeamSection id="expedition-equipment" title="Equipment"
+      linkTo="/projects/ExpeditionShop" linkLabel="Visit Storefront">
+      {items.length ? (
+        <ul style={styles.rosterList} role="list">
+          {items.map(item => (
+            <li key={item.id} style={styles.rosterEntry}>
+              <span>{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
+              {item.description && <p style={styles.ruleText}>{item.description}</p>}
+            </li>
+          ))}
+        </ul>
+      ) : <p style={styles.note}>No team equipment added yet.</p>}
+      {editing && (
+        <form onSubmit={addEquipment} style={styles.form}>
+          <label style={{ ...styles.label, ...styles.unitNameField }}>
+            Equipment name
+            <input value={name} onChange={event => setName(event.target.value)} maxLength={100}
+              required disabled={saving} style={styles.field} />
+          </label>
+          <button type="submit" disabled={saving || !name.trim()} style={styles.button}>Add equipment</button>
+        </form>
+      )}
+      {feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.note}>{feedback.message}</p>}
+    </CollapsibleTeamSection>
+  );
+}
+
+function ActiveBounties() {
+  const [bounties, setBounties] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    loadBounties(signal).then(({ bounties }) => {
+      if (!signal.aborted) setBounties(Array.isArray(bounties) ? bounties : []);
+    }).catch(error => {
+      if (!signal.aborted) setError(error.message);
+    });
+    return () => controller.abort();
+  }, []);
+
+  const active = bounties?.flatMap(bounty => {
+    const { progress, progressMax, isOpen, isClaimed } = getBountyProgress(bounty);
+    if (!isOpen || isClaimed || bounty.canAccess === false || !progress || !progressMax) return [];
+    return [{ id: bounty.id, name: bounty.name || 'Untitled Bounty', progress, progressMax }];
+  });
+
+  return (
+    <CollapsibleTeamSection id="expedition-active-bounties" title="Active Bounties"
+      linkTo="/projects/ExpeditionBounties" linkLabel="Visit Bounty Board">
+      {error && <p role="alert" style={styles.error}>{error}</p>}
+      {!error && !active && <p role="status" style={styles.note}>Loading bounty progress…</p>}
+      {active?.length === 0 && <p style={styles.note}>You have no active bounties with recorded progress.</p>}
+      {active?.length > 0 && (
+        <ul style={styles.rosterList} role="list">
+          {active.map(({ id, name, progress, progressMax }) => (
+            <li key={id} style={styles.rosterEntry}>
+              <div style={styles.ruleSectionHeader}>
+                <strong>{name}</strong>
+                <span>{progress} / {progressMax}</span>
+              </div>
+              <progress value={progress} max={progressMax} aria-label={`Your progress on ${name}`}
+                style={{ width: '100%', height: '8px', accentColor: 'var(--team-accent)' }} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </CollapsibleTeamSection>
   );
 }
 
@@ -742,6 +874,11 @@ function TeamPoints({ team, onChange }) {
           ))}
         </dl>
       )}
+      <div style={styles.balanceActions}>
+        <button type="button" disabled title="Battle reporting is coming later"
+          style={{ ...styles.button, opacity: 0.6, cursor: 'not-allowed' }}>Report Battle</button>
+        <Link to="/projects/ExpeditionBounties" style={{ ...styles.button, textDecoration: 'none' }}>Check Bounties</Link>
+      </div>
       {feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.note}>{feedback.message}</p>}
     </section>
   );
@@ -806,11 +943,64 @@ function TeamTitle({ team, editing, onSave }) {
   );
 }
 
+function TeamLore({ team, editing, onSave }) {
+  const lore = team.lore ?? '';
+  const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  async function saveLore(event) {
+    event.preventDefault();
+    if (saving || draft === null || draft === lore) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const { response, payload } = await updateTeam(team.name, 'lore', { lore: draft, expectedLore: lore });
+      if (response.status === 409 && typeof payload.lore === 'string') {
+        onSave(payload.lore);
+        setFeedback({ error: true, conflict: true, message: payload.message });
+        return;
+      }
+      if (!response.ok) throw new Error(payload.message || 'Unable to save team lore.');
+      onSave(payload.lore);
+      setDraft(null);
+      setFeedback({ message: 'Lore saved.' });
+    } catch (error) {
+      setFeedback({ error: true, message: error.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section id="expedition-team-lore" style={styles.card} aria-labelledby="expedition-team-lore-heading">
+      <h2 id="expedition-team-lore-heading" style={styles.heading}>Lore</h2>
+      {editing ? (
+        <form onSubmit={saveLore} style={styles.loreForm}>
+          <textarea aria-label="Team lore" rows={5} value={draft ?? lore} disabled={saving}
+            onChange={event => setDraft(event.target.value)}
+            style={{ ...styles.field, boxSizing: 'border-box', resize: 'vertical' }} />
+          <button type="submit" disabled={saving || draft === null || draft === lore}
+            style={{ ...styles.button, justifySelf: 'start' }}>Save lore</button>
+        </form>
+      ) : <p style={lore ? styles.ruleText : styles.note}>{lore || 'No team lore has been written yet.'}</p>}
+      {feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.note}>{feedback.message}</p>}
+      {editing && feedback?.conflict && (
+        <div>
+          <strong>Currently saved lore</strong>
+          <p style={styles.ruleText}>{lore || 'No team lore has been written yet.'}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function ExpeditionTeams() {
+  const { hash } = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [teams, setTeams] = useState(null);
   const [assignedTeam, setAssignedTeam] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState('');
-  const [editingRoster, setEditingRoster] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [reload, setReload] = useState(0);
 
@@ -824,7 +1014,7 @@ export default function ExpeditionTeams() {
   useEffect(() => {
     let ignore = false;
     setTeams(null);
-    setEditingRoster(false);
+    setEditingTeam(null);
     setLoadError('');
     async function loadTeams() {
       try {
@@ -834,7 +1024,6 @@ export default function ExpeditionTeams() {
         const ownTeam = payload.teams.find(entry => entry.name === payload.assignedTeam)?.name || '';
         setAssignedTeam(ownTeam);
         setTeams(payload.teams);
-        setSelectedTeam(ownTeam || payload.teams[0]?.name || '');
       } catch (error) {
         if (!ignore) setLoadError(error.message);
       }
@@ -843,10 +1032,22 @@ export default function ExpeditionTeams() {
     return () => { ignore = true; };
   }, [reload]);
 
-  const team = teams?.find(entry => entry.name === selectedTeam);
+  const requestedTeam = searchParams.get('team');
+  const team = requestedTeam === null
+    ? teams?.find(entry => entry.name === assignedTeam) ?? teams?.[0]
+    : teams?.find(entry => entry.name === requestedTeam.trim().toLowerCase());
+  const selectedTeam = team?.name;
+  useEffect(() => { setEditingTeam(null); }, [selectedTeam]);
+
+  if (requestedTeam === null && selectedTeam) {
+    const next = new URLSearchParams(searchParams);
+    next.set('team', selectedTeam);
+    return <Navigate to={{ search: `?${next}`, hash }} replace />;
+  }
+
   const [accent, tint] = teamThemes[team?.name] ?? ['#dedede', '#292929'];
   const canEditRoster = Boolean(team?.canAddEntries);
-  const editing = canEditRoster && editingRoster;
+  const editing = canEditRoster && editingTeam === selectedTeam;
   const updateSelectedTeam = update => {
     setTeams(current => current?.map(entry => entry.name === selectedTeam ? { ...entry, ...update(entry) } : entry) ?? null);
   };
@@ -863,13 +1064,15 @@ export default function ExpeditionTeams() {
               : <h1 style={styles.title}>Teams</h1>}
           </div>
           <div style={styles.headerControls}>
-            {teams?.length > 1 && (
+            {teams?.length > 0 && (teams.length > 1 || !team) && (
               <label style={{ ...styles.label, minWidth: 0, maxWidth: '280px' }}>
                 Team
-                <select value={selectedTeam} onChange={event => {
-                  setSelectedTeam(event.target.value);
-                  setEditingRoster(false);
+                <select value={selectedTeam ?? ''} onChange={event => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set('team', event.target.value);
+                  setSearchParams(next);
                 }} style={styles.field}>
+                  {!team && <option value="" disabled>Choose a team</option>}
                   {teams.map(entry => (
                     <option key={entry.name} value={entry.name}>
                       {teamOptionLabel(entry)}{entry.name === assignedTeam ? ' (your team)' : ''}
@@ -883,9 +1086,9 @@ export default function ExpeditionTeams() {
                 type="button"
                 aria-label="Edit roster"
                 aria-pressed={editing}
-                aria-controls="expedition-units"
+                aria-controls="expedition-team-lore expedition-units expedition-equipment"
                 title={editing ? 'Done editing roster' : 'Edit roster'}
-                onClick={() => setEditingRoster(current => !current)}
+                onClick={() => setEditingTeam(current => current === selectedTeam ? null : selectedTeam)}
                 style={{ ...styles.button, ...styles.pencil, ...(editing ? { background: 'var(--team-tint)', borderColor: 'var(--team-accent)' } : {}) }}
               >
                 <span aria-hidden="true">✎</span>
@@ -901,15 +1104,20 @@ export default function ExpeditionTeams() {
         ) : !teams ? (
           <p role="status" style={styles.note}>Loading Expedition teams…</p>
         ) : !team ? (
-          <p style={styles.note}>No Expedition teams are available.</p>
+          <p style={styles.note}>{teams.length ? 'That team is unavailable. Choose a team to continue.' : 'No Expedition teams are available.'}</p>
         ) : (
-          <div key={team.name} style={styles.layout}>
-            <div style={styles.teamOverview}>
-              <TeamPoints team={team} onChange={updateSelectedTeam} />
-              <TeamLocations locations={team.locations} />
+          <>
+            <div key={team.name} style={styles.layout}>
+              <div style={styles.teamOverview}>
+                <TeamPoints team={team} onChange={updateSelectedTeam} />
+                <TeamLocations locations={team.locations} />
+              </div>
+              <TeamLore team={team} editing={editing} onSave={lore => updateSelectedTeam(() => ({ lore }))} />
+              <TeamUnits team={team} editing={editing} onChange={updateSelectedTeam} />
+              <TeamEquipment team={team} editing={editing} onChange={updateSelectedTeam} />
             </div>
-            <TeamUnits team={team} editing={editing} onChange={updateSelectedTeam} />
-          </div>
+            <ActiveBounties key={reload} />
+          </>
         )}
       </div>
     </main>

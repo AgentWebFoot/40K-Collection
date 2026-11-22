@@ -21,3 +21,12 @@ function Test-PreviewPortInUse([int]$Port) {
         $client.Dispose()
     }
 }
+
+function Get-PreviewNpmCommand {
+    $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $nodeCommand) { return $null }
+    $candidate = Join-Path (Split-Path -Parent $nodeCommand.Source) 'npm.cmd'
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+    $npmCommand = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    return if ($npmCommand) { $npmCommand.Source } else { $null }
+}

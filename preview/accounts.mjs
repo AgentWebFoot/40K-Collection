@@ -2,10 +2,14 @@ import { expeditionRoles, expeditionTeams } from '../Expedition/expedition-membe
 import { campaignTestPlayers } from '../HybridCampaign/test-player-fixtures.mjs';
 
 export { expeditionRoles, expeditionTeams };
-export const roles = ['user', 'traveler', 'admin', 'owner'];
+export const roles = ['user', 'traveler', 'manager', 'owner'];
 export const membershipRoles = ['viewer', 'participant', 'writer', 'admin'];
-export const effectiveRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.membershipRole || 'viewer';
-export const expeditionRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.expeditionMembershipRole || 'viewer';
+export const effectiveRole = account => {
+  if (account.role === 'owner') return 'owner';
+  if (account.role === 'manager') return 'admin';
+  return account.membershipRole || 'viewer';
+};
+export const expeditionRole = account => account.role === 'owner' ? 'owner' : account.expeditionMembershipRole || 'viewer';
 /** Campaign roles are a separate, local-preview assignment. They never alter site permission. */
 export const campaignRoles = ['owner-gm', 'gm', 'co-gm', 'player', 'display'];
 
@@ -15,13 +19,14 @@ export function createAccountStore(storage) {
   const raw = storage?.getItem(key);
   let state = raw ? JSON.parse(raw) : { nextId: 1, accounts: [] };
   if (!Number.isSafeInteger(state.nextId) || !Array.isArray(state.accounts) || state.accounts.some(account =>
-    !Number.isSafeInteger(account.id) || typeof account.username !== 'string' || !roles.includes(account.role) ||
+    !Number.isSafeInteger(account.id) || typeof account.username !== 'string' || !(roles.includes(account.role) || account.role === 'admin') ||
     !membershipRoles.includes(account.membershipRole) || !Number.isInteger(account.team) || account.team < 0 || account.team > 4 ||
     (account.campaignRole !== undefined && !campaignRoles.includes(account.campaignRole)) ||
     (account.testFixtureId !== undefined && !campaignTestPlayers.some(fixture => fixture.id === account.testFixtureId)) ||
     (account.campaignIdentityId !== undefined && typeof account.campaignIdentityId !== 'string'))) {
     throw new Error('Saved preview accounts are invalid. Clear the pyrrhic-preview-accounts-v1 browser storage entry to reset them.');
   }
+  state.accounts = state.accounts.map(account => account.role === 'admin' ? { ...account, role: 'manager' } : account);
   const listeners = new Set();
   const commit = next => {
     storage?.setItem(key, JSON.stringify(next));

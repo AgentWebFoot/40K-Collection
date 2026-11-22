@@ -8,6 +8,7 @@ import Expedition from '../Expedition/Expedition.jsx';
 import ExpeditionMap from '../Expedition/ExpeditionMap.jsx';
 import ExpeditionTeams from '../Expedition/ExpeditionTeams.jsx';
 import ExpeditionBattles from '../Expedition/ExpeditionBattles.jsx';
+import ExpeditionLore from '../Expedition/ExpeditionLore.jsx';
 import ExpeditionBounties from '../Expedition/ExpeditionBounties.jsx';
 import ExpeditionShop from '../Expedition/ExpeditionShop.jsx';
 import HybridCampaign from '../HybridCampaign/HybridCampaign.jsx';
@@ -50,9 +51,9 @@ function App() {
     if (!normalized.username) throw new Error('Enter a username first.');
     setAccount(normalized); setActive(normalized); setVersion(value => value + 1);
   };
-  const run = action => {
+  const run = async action => {
     setError(''); setMessage('');
-    try { action(); } catch (error) { setError(error.message); }
+    try { await action(); } catch (error) { setError(error.message); }
   };
   const activeMember = saved.find(item => item.username.toLowerCase() === active.username.toLowerCase());
   const chosen = saved.find(item => String(item.id) === selected);
@@ -72,7 +73,7 @@ function App() {
         <section className="account-editor" aria-label="Account controls">
           <form onSubmit={event => { event.preventDefault(); run(() => { apply(draft); setMessage('Applied.'); }); }}>
             <label>Username<input name="username" value={draft.username} onChange={change} maxLength={80} required /></label>
-            <label>Permission<select name="role" value={draft.role} onChange={change}>{roles.map(role => <option key={role} value={role}>{label(role)}</option>)}</select></label>
+            <label>Site role<select name="role" value={draft.role} onChange={change}>{roles.map(role => <option key={role} value={role}>{label(role)}</option>)}</select></label>
             <button type="submit">Apply</button>
           </form>
           <p className="active-account"><strong>{active.username}</strong><span>{label(active.role)}</span>
@@ -83,8 +84,8 @@ function App() {
         </section>
         <section className="saved-accounts" aria-labelledby="saved-title">
           <h2 id="saved-title" className="visually-hidden">Saved accounts</h2>
-          <button type="button" className="save-account" onClick={() => run(() => {
-            const entry = accounts.save(draft);
+          <button type="button" className="save-account" onClick={() => run(async () => {
+            const entry = await accounts.save(draft);
             setSelected(String(entry.id)); apply(entry);
             setMessage('Saved.');
           })}>Save</button>
@@ -97,8 +98,8 @@ function App() {
               setDraft({ username: chosen.username, role: chosen.role }); apply(chosen);
               setMessage('Loaded.');
             })}>Load</button>
-            <button type="button" className="delete-account" disabled={!chosen} onClick={() => run(() => {
-              accounts.remove(chosen.id); setSelected('');
+            <button type="button" className="delete-account" disabled={!chosen} onClick={() => run(async () => {
+              await accounts.remove(chosen.id); setSelected('');
               if (chosen.username.toLowerCase() === active.username.toLowerCase()) {
                 const fallback = { username: 'Test Player', role: 'user' };
                 setDraft(fallback); apply(fallback);
@@ -106,10 +107,11 @@ function App() {
               setMessage('Deleted.');
             })}>Delete</button>
           </div>
-          {['admin', 'owner'].includes(active.role) && <label>Hybrid Campaign role<select value={chosen?.campaignRole || ''} disabled={!chosen} onChange={event => run(() => {
-            if (!chosen || !event.target.value) return;
-            accounts.assignCampaignRole(chosen.id, event.target.value);
-            setMessage(`Campaign role assigned: ${label(event.target.value)}.`);
+          {['manager', 'owner'].includes(active.role) && <label>Hybrid Campaign role<select value={chosen?.campaignRole || ''} disabled={!chosen} onChange={event => run(async () => {
+            const role = event.target.value;
+            if (!chosen || !role) return;
+            await accounts.assignCampaignRole(chosen.id, role);
+            setMessage(`Campaign role assigned: ${label(role)}.`);
           })}><option value="">Choose saved account</option>{campaignRoles.map(role => <option key={role} value={role}>{label(role)}</option>)}</select></label>}
         </section>
       </div>
@@ -130,6 +132,7 @@ function App() {
         <Route path="/projects/ExpeditionShop" element={<ExpeditionShop />} />
         <Route path="/projects/ExpeditionBattles" element={<ExpeditionBattles />} />
         <Route path="/projects/ExpeditionBattles/settings" element={<ExpeditionBattles settings />} />
+        <Route path="/projects/ExpeditionLore" element={<ExpeditionLore />} />
         <Route path="/projects/HybridCampaign" element={<HybridCampaign />} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>

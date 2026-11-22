@@ -30,7 +30,7 @@ export function createMockApi(mapSeed, compendiumSeed, accounts = createAccountS
       pyrrhicWarRole: effectiveRole(target),
       pyrrhicWarMembershipRole: target.role === 'owner' ? 'owner' : target.membershipRole,
       pyrrhicWarTeam: target.team,
-      canEditPyrrhicWarRole: admin && !['owner', 'admin'].includes(target.role),
+      canEditPyrrhicWarRole: admin && !['owner', 'manager'].includes(target.role),
       canEditPyrrhicWarTeam: admin && (target.role !== 'owner' || account.role === 'owner'),
     });
     if (route === '/access') return reply({ user, access: { role, membershipRole, team, canManageRoles: admin, canEditCompendium: writer }, settings });
@@ -45,7 +45,7 @@ export function createMockApi(mapSeed, compendiumSeed, accounts = createAccountS
           (!permissions.canEditPyrrhicWarTeam && body.team !== target.team)) return forbidden();
       if (!membershipRoles.includes(requestedRole) || !Number.isInteger(body.team) || body.team < 0 || body.team > 4) return reply({ message: 'Invalid Pyrrhic War permission or team.' }, 400);
       try {
-        return reply({ patron: patron(accounts.assign(target.id, requestedRole, body.team)), message: 'Preview membership saved in this browser.' });
+        return reply({ patron: patron(accounts.assign(target.id, requestedRole, body.team)), message: 'Preview membership saved.' });
       } catch (error) { return reply({ message: error.message }, 500); }
     }
     if (route === '/map' && method === 'GET') return reply(map);

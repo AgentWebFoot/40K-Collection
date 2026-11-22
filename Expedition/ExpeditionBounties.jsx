@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { fetchJson, getAuthEventName } from '../../utils/auth';
 import { expeditionTeams } from './expedition-membership.mjs';
 import './point-rewards.js';
@@ -127,7 +127,7 @@ function BountyCard({ bounty, canSubmit, canReview, showProgress, busy, onToggle
   }
 
   return (
-    <article style={styles.card}>
+    <article id={`bounty-${bounty.id}`} tabIndex={-1} style={styles.card}>
       <h3 style={styles.heading}>{name}</h3>
       {bounty.description && <p style={styles.description}>{bounty.description}</p>}
       <div style={styles.grid}>
@@ -176,7 +176,7 @@ function PendingRequest({ record, bountyName, busy, onReview }) {
   const request = record.request;
   const type = String(request?.requestType).toLowerCase();
   return (
-    <article style={styles.card}>
+    <article id={`bounty-request-${record.id}`} tabIndex={-1} style={styles.card}>
       <p style={styles.text}><strong>Bounty</strong> {bountyName || `Bounty #${record.bountyId}`}</p>
       <p style={styles.text}><strong>Traveler</strong> {record.requesterUsername || 'Unknown'}</p>
       <p style={styles.text}><strong>Type</strong> {type === 'claim' ? 'Claim' : 'Progress'}</p>
@@ -205,6 +205,7 @@ export default function ExpeditionBounties() {
 }
 
 function BountyPage() {
+  const { hash } = useLocation();
   const [access, setAccess] = useState(null);
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
@@ -215,6 +216,13 @@ function BountyPage() {
   const canSubmit = access?.role === 'traveler' && teams.includes(access.team);
   const bounties = Array.isArray(data?.bounties) ? data.bounties : [];
   const pending = Array.isArray(data?.pendingRequests) ? data.pendingRequests : [];
+
+  useEffect(() => {
+    if (!data || !hash) return;
+    const card = document.getElementById(hash.slice(1));
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ block: 'nearest' });
+  }, [data, canReview, hash]);
 
   useEffect(() => {
     const controller = new AbortController();

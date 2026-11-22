@@ -1756,8 +1756,9 @@
                 switch (String(nextRole || '').toLowerCase()) {
                     case 'traveler':
                         return 'Traveler';
+                    case 'manager':
                     case 'admin':
-                        return 'Admin';
+                        return 'Manager';
                     case 'owner':
                         return 'Owner';
                     default:

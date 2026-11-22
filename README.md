@@ -4,8 +4,8 @@
 
 The React account simulator is an optional local development setup. Its JSX
 files, `preview/` folder, package manifests, and helper scripts belong in the
-repository. Installed dependencies (`node_modules/`) and JSON data under
-`Expedition/` and `PyrrhicWar/` are gitignored. The install script downloads
+repository. Installed dependencies (`node_modules/`), Expedition saves under
+`data/expedition/`, and JSON data under `Expedition/` and `PyrrhicWar/` are gitignored. The install script downloads
 dependencies, but does not download campaign data.
 
 To set up the simulator on another computer:
@@ -20,7 +20,9 @@ To set up the simulator on another computer:
    PyrrhicWar/pyrrhicCompendium.JSON
    ```
 
-   These files are kept locally and must be supplied separately on a new checkout.
+   Supply the location compendium on a new checkout. The Expedition map is an
+   optional seed for the first run, and Pyrrhic War uses empty fixtures if its
+   JSON files are absent.
 3. On Windows, open PowerShell in the repository root and run the install script:
 
    ```powershell
@@ -57,7 +59,7 @@ use the launch script or run `npm run dev`.
 Open **http://127.0.0.1:5173** and choose **Pyrrhic War** or **Expedition**.
 Use the landing page's **Back** button to return to the project selection page.
 Enter a username and select **User**, **Traveler**,
-**Admin**, or **Owner**, then click **Apply**. Use the Pyrrhic War landing page to open the
+**Manager**, or **Owner**, then click **Apply**. Use the Pyrrhic War landing page to open the
 Compendium or Crusade Board. The header remains visible on both pages.
 
 The preview runs the original JSX components. Their missing website auth import
@@ -70,20 +72,20 @@ The right side of the header lets you **Save**, **Load**,
 or **Delete** a saved account. Save uses the username and site permission currently
 entered on the left and applies that preview. Usernames are matched without case
 sensitivity; saving an existing name updates its site permission and preserves its
-Pyrrhic War membership. Saved accounts and game assignments persist in this
-browser's local storage, separately for each host and port.
+game memberships. Saved accounts and assignments are shared by browsers using
+the same local preview installation and stored in `data/expedition/accounts.json`.
 
 To test game permission assignment:
 
 1. Save one or more User or Traveler accounts. Both start as Pyrrhic War Viewers
    with no team assigned.
-2. Apply or save an Admin or Owner account, then open the settings gear on the
+2. Apply or save a Manager or Owner account, then open the settings gear on the
    Pyrrhic War landing page or campaign board.
 3. Saved accounts appear in the member list. Assign Viewer, Participant, Writer,
    or Admin access and a team there.
 4. Load the saved account from the header to test its assigned game permissions.
 
-Site Admin and Owner retain administrative game access. Their inherited access
+Site Manager and Owner retain administrative Pyrrhic War access in the preview. Their inherited access
 cannot be downgraded in game settings. Game admins can manage ordinary members;
 only a site Owner can change an Owner's team. Deleting an account removes its game
 assignment. These are local simulation rules, not production authorization.
@@ -104,7 +106,7 @@ The local server binds only to `127.0.0.1` and does not write campaign source do
 ## Tavrellis Player Command Deck
 
 The **Warhammer Projects** section includes a local Tavrellis player Atlas. It
-reuses the existing browser-local saved accounts, with a separate Hybrid
+reuses the preview server's saved accounts, with a separate Hybrid
 Campaign player role and one-time character/faction onboarding. The command
 deck is deliberately read-only: it displays only the public Atlas projection,
 and its future terminal surfaces are visibly inactive.
@@ -115,24 +117,50 @@ replacement for hosted authentication. The Atlas is served under
 `/hybrid-campaign/`; only its three required visual assets are publicly served.
 
 Expedition uses the same saved site accounts and compact, collapsible header.
-Its game assignments are separate from Pyrrhic War: open the Expedition menu as
-an Admin or Owner, then use the settings gear to assign Viewer, Traveler, or Admin
-and a color team to a saved account. Existing saved accounts remain available;
-accounts without an Expedition assignment start as Viewer with no team. Site
-Admins and Owners retain administrative access in both games.
+Open Expedition Settings as a site Manager, Expedition Admin, or Owner to assign
+Viewer, Traveler, or Admin to a saved account. Team assignments and round changes
+require Expedition Admin or Owner access.
+The site role and Expedition role can be assigned independently. Accounts without
+an Expedition assignment start as Viewer with no team, and site Owners retain
+Expedition Owner access. Saved site Admin accounts load as Managers and keep their
+explicit Expedition assignments.
 
 The Expedition simulator supports map and round saves, team points, member
 assignments, request submission and editing, personal and admin request lists,
-cancellation, denial, and reading request history. Use **Battles** to see reports
-involving your team and log a battle. Admins can review reports and edit battle
-rewards in **Battles → Settings**. Reports, team point balances, rosters,
-memberships, and admin settings, including the round, persist in browser storage.
-Tile edits and other requests last until the outer page is refreshed. Admins can
+cancellation, denial, and reading request history. Use **Battles → Pending Reviews**
+to confirm reports involving your team. The report enters the Battle Log once all
+other Expedition participants confirm, or when an Expedition Admin or Owner
+approves it directly. Outside players require no confirmation. Admins can edit battle
+rewards in **Battles → Settings**. Reports, team balances, rosters, map edits,
+memberships, and admin settings persist on disk. Other map requests last until the
+preview server restarts. Admins can
 also approve resupply and point-only Search and Manoeuvre requests. Approval of other
 requests, history deletion, and bounty mutations return explicit errors. The
 bounty list starts empty. Expedition's Compendium is unavailable in the supplied
 landing page.
-The original Expedition HTML and map assets are served without modifying files.
+
+### Expedition save files
+
+`npm run build` and `npm run dev` create missing files in `data/expedition/`.
+They keep any file already in that directory. Set `EXPEDITION_DATA_DIRECTORY`
+to use a different directory for a local installation or server. Keep the
+directory outside the public build output and give each installation its own path.
+
+| File | Contents |
+| --- | --- |
+| `map.json` | Map geometry and tile data |
+| `teams/<color>.json` | The team's roster, lore, faction and purchased equipment, and point and credit balances |
+| `bounties.json` | Bounty listings and the preview's pending-request data |
+| `shop.json` | Storefront catalog and stock |
+| `battles.json` | Battle reports, confirmations, equipment use, and rewards |
+| `lore.json` | Team lore posts, campaign rounds, and linked tile and battle IDs |
+| `settings.json`, `universal-equipment.json`, and `accounts.json` | Campaign settings, shared equipment rules, and saved accounts and assignments |
+
+On first start, the preview reads map geometry and starting balances from
+`Expedition/expeditionmap.json` if present. A browser with older preview saves can
+import them when it opens an untouched save directory. The preview leaves the
+copy in browser storage available for recovery. Once the files contain saves,
+opening the app from another browser uses the installation's saved data.
 
 If launch reports that port 5173 is already in use, the preview may already be
 running: open **http://127.0.0.1:5173**. To restart it, press **Ctrl+C** in the

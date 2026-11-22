@@ -16,7 +16,24 @@ const request = async (path, accountKey, init = {}) => { const response = await 
 function PlayerOnboarding({ account, onFinished }) {
   const [factions, setFactions] = useState([]); const [characterName, setCharacterName] = useState(''); const [recipientId, setRecipientId] = useState(''); const [supportingFactionName, setSupportingFactionName] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const accountKey = accountKeyFor(account);
   useEffect(() => { let active = true; void request('/preview/onboarding-options', accountKey).then(body => { if (!active) return; setFactions(body.factions || []); setRecipientId(body.factions?.[0]?.id || ''); }).catch(problem => { if (active) setError(problem.message); }); return () => { active = false; }; }, [accountKey]);
-  const submit = async event => { event.preventDefault(); setError(''); setSaving(true); try { const body = await request('/preview/onboarding', accountKey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ characterName, supportingFactionRecipientId: recipientId, supportingFactionName }) }); accounts.assignCampaignIdentity(account.id, body.identity.id); window.dispatchEvent(new Event(getAuthEventName())); onFinished(); window.location.hash = '#/atlas'; } catch (problem) { setError(problem instanceof Error ? problem.message : 'The player profile could not be created.'); } finally { setSaving(false); } };
+  const submit = async event => {
+    event.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const body = await request('/preview/onboarding', accountKey, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characterName, supportingFactionRecipientId: recipientId, supportingFactionName }),
+      });
+      await accounts.assignCampaignIdentity(account.id, body.identity.id);
+      onFinished();
+      window.location.hash = '#/atlas';
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'The player profile could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return <main className="hybrid-hub"><header><p className="eyebrow">Player profile setup</p><h1>Enter the Tavrellis campaign</h1><p>This local preview links one character to this Tavern account. The choice only controls the player-facing command deck.</p></header><form className="hybrid-onboarding" onSubmit={submit}><label>Character name<input required maxLength="80" value={characterName} onChange={event => setCharacterName(event.target.value)} /></label><label>Supporting faction<select required value={recipientId} onChange={event => setRecipientId(event.target.value)}>{factions.map(faction => <option key={faction.id} value={faction.id}>{faction.name}</option>)}</select></label><label>Supporting faction or warband name<input required maxLength="120" value={supportingFactionName} onChange={event => setSupportingFactionName(event.target.value)} placeholder="Your named support route" /></label>{error && <p className="hybrid-error" role="alert">{error}</p>}<button disabled={saving || !factions.length}>{saving ? 'Creating profile…' : 'Create campaign profile'}</button></form></main>;
 }
 
@@ -24,7 +41,18 @@ export default function HybridCampaign() {
   const [version, setVersion] = useState(0); const [profileResolved, setProfileResolved] = useState(false); const account = useMemo(() => savedAccount(), [version]); const accountKey = accountKeyFor(account); const player = account?.campaignRole === 'player';
   useEffect(() => { const refresh = () => setVersion(value => value + 1); window.addEventListener(getAuthEventName(), refresh); return () => window.removeEventListener(getAuthEventName(), refresh); }, []);
   useEffect(() => accounts?.subscribe(() => setVersion(value => value + 1)), []);
-  useEffect(() => { let active = true; setProfileResolved(!player || !!account?.campaignIdentityId); if (!player || account?.campaignIdentityId || !accountKey) return () => { active = false; }; void request('/preview/profile', accountKey).then(body => { if (!active) return; if (body.profile?.identityId) { accounts.assignCampaignIdentity(account.id, body.profile.identityId); window.dispatchEvent(new Event(getAuthEventName())); } setProfileResolved(true); }).catch(() => { if (active) setProfileResolved(true); }); return () => { active = false; }; }, [account?.id, account?.campaignIdentityId, accountKey, player]);
+  useEffect(() => {
+    let active = true;
+    setProfileResolved(!player || !!account?.campaignIdentityId);
+    if (player && !account?.campaignIdentityId) {
+      void request('/preview/profile', accountKey).then(async body => {
+        if (active && body.profile?.identityId) {
+          await accounts.assignCampaignIdentity(account.id, body.profile.identityId);
+        }
+      }).catch(() => {}).finally(() => { if (active) setProfileResolved(true); });
+    }
+    return () => { active = false; };
+  }, [account?.id, account?.campaignIdentityId, accountKey, player]);
   const returnToTavern = () => { window.location.hash = ''; };
   return <section className="hybrid-campaign-shell"><style>{embeddedCss}</style><nav className="hybrid-return" aria-label="Campaign navigation"><Link to="/projects" onClick={returnToTavern}>← Return to the Tavern</Link><strong>Senseweeks’s Hybrid Campaign Experiment</strong></nav>{!player ? <main className="hybrid-hub"><p className="eyebrow">Campaign access</p><h1>Player clearance required</h1><p>Choose a saved account assigned the Hybrid Campaign player role to open the Tavrellis command deck.</p></main> : !profileResolved ? <main className="hybrid-hub"><p>Synchronising the local player profile…</p></main> : !account?.campaignIdentityId ? <PlayerOnboarding account={account} onFinished={() => setVersion(value => value + 1)} /> : <AtlasApp key={`${account.id}:${account.campaignIdentityId}`} accountKey={accountKey}/>}</section>;
 }

@@ -1,35 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { API_URL, readStoredUser, refreshStoredUser } from '../../utils/auth';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { API_URL } from '../../utils/auth';
 
 const ExpeditionMap = () => {
-  const [resolvedRole, setResolvedRole] = useState(() => readStoredUser()?.role || 'viewer');
   const navigate = useNavigate();
-  const apiUrl = encodeURIComponent(API_URL);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function refreshCurrentUserRole() {
-      try {
-        const refreshedUser = await refreshStoredUser();
-
-        if (!ignore && refreshedUser) {
-          setResolvedRole(refreshedUser.role || 'viewer');
-        }
-      } catch (_error) {
-        if (!ignore) {
-          setResolvedRole(readStoredUser()?.role || 'viewer');
-        }
-      }
-    }
-
-    refreshCurrentUserRole();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const [params] = useSearchParams();
+  const boardParams = new URLSearchParams({ apiUrl: API_URL });
+  const tile = params.get('tile');
+  if (tile) boardParams.set('tile', tile);
+  const request = params.get('request');
+  if (request) boardParams.set('request', request);
 
   return (
     <div
@@ -65,7 +44,7 @@ const ExpeditionMap = () => {
         &lt; Back 
       </button>
       <iframe
-        src={`/games/Expedition/ExpeditionMap.html?role=${encodeURIComponent(resolvedRole)}&apiUrl=${apiUrl}`}
+        src={`/games/Expedition/ExpeditionMap.html?${boardParams}`}
         title="Expedition Crusade Board"
         style={{
           width: '100%',

@@ -23,7 +23,7 @@ function SettingsStatus({ feedback }) {
   return feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.status}>{feedback.message}</p>;
 }
 
-export default function ExpeditionSettings({ role, round, onRoundChange, onMemberChange, onClose }) {
+export default function ExpeditionSettings({ canUseAdminMode, round, onRoundChange, onMemberChange, onClose }) {
   const dialog = useRef(null);
   const [draftRound, setDraftRound] = useState(null);
   const [roundBusy, setRoundBusy] = useState(false);
@@ -52,7 +52,7 @@ export default function ExpeditionSettings({ role, round, onRoundChange, onMembe
     }
     loadMembers();
     return () => { ignore = true; };
-  }, [memberRevision]);
+  }, [canUseAdminMode, memberRevision]);
 
   async function saveRound(event) {
     event.preventDefault();
@@ -104,19 +104,23 @@ export default function ExpeditionSettings({ role, round, onRoundChange, onMembe
           <h2 id="expedition-menu-settings-title" style={styles.heading}>Expedition Settings</h2>
           <button type="button" style={styles.button} onClick={() => dialog.current.close()} aria-label="Close settings">×</button>
         </div>
-        <form onSubmit={saveRound} style={styles.form}>
-          <label style={{ ...styles.label, width: '125px' }}>
-            Round Number
-            <input type="number" min="1" max={Number.MAX_SAFE_INTEGER} step="1" required
-              value={draftRound ?? round ?? ''} onChange={event => setDraftRound(event.target.value)}
-              disabled={roundBusy || round == null} style={styles.input} />
-          </label>
-          <button type="submit" disabled={roundBusy || round == null} style={styles.button}>Save Round</button>
-        </form>
-        <SettingsStatus feedback={roundFeedback} />
+        {canUseAdminMode && (
+          <>
+            <form onSubmit={saveRound} style={styles.form}>
+              <label style={{ ...styles.label, width: '125px' }}>
+                Round Number
+                <input type="number" min="1" max={Number.MAX_SAFE_INTEGER} step="1" required
+                  value={draftRound ?? round ?? ''} onChange={event => setDraftRound(event.target.value)}
+                  disabled={roundBusy || round == null} style={styles.input} />
+              </label>
+              <button type="submit" disabled={roundBusy || round == null} style={styles.button}>Save Round</button>
+            </form>
+            <SettingsStatus feedback={roundFeedback} />
+          </>
+        )}
         <section style={styles.layout} aria-labelledby="expedition-menu-team-assignments">
           <div style={styles.header}>
-            <h3 id="expedition-menu-team-assignments" style={styles.heading}>Team Assignments</h3>
+            <h3 id="expedition-menu-team-assignments" style={styles.heading}>Expedition Members</h3>
             <button type="button" disabled={membersBusy} style={styles.button} onClick={() => setMemberRevision(value => value + 1)}>Refresh Members</button>
           </div>
           <SettingsStatus feedback={memberFeedback} />
@@ -130,9 +134,12 @@ export default function ExpeditionSettings({ role, round, onRoundChange, onMembe
                 const team = member.expeditionTeam || '';
                 return (
                   <div key={member.id} style={styles.member}>
-                    <strong>{name}</strong>
+                    <div>
+                      <strong>{name}</strong>
+                      <div style={styles.label}>Site role · {capitalize(member.siteRole)}</div>
+                    </div>
                     <label style={styles.label}>
-                      Access
+                      Expedition role
                       <select aria-label={`Expedition access for ${name}`} value={membershipRole}
                         disabled={!member.canEditExpeditionRole || membersBusy} style={styles.input}
                         onChange={event => saveMember(member, event.target.value, team)}>
@@ -144,7 +151,7 @@ export default function ExpeditionSettings({ role, round, onRoundChange, onMembe
                     <label style={styles.label}>
                       Team
                       <select aria-label={`Team for ${name}`} value={team}
-                        disabled={membersBusy || (member.siteRole === 'owner' && role !== 'owner')} style={styles.input}
+                        disabled={membersBusy || !canUseAdminMode || !member.canEditExpeditionTeam} style={styles.input}
                         onChange={event => saveMember(member, membershipRole, event.target.value)}>
                         {expeditionTeams.map(color => <option key={color} value={color}>{capitalize(color) || 'No Team'}</option>)}
                       </select>

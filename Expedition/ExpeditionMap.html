@@ -1597,7 +1597,6 @@
             const rows = 21;
             const cols = 34;
             const params = new URLSearchParams(window.location.search);
-            const hintedRole = params.get('role') || 'viewer';
             let role = 'viewer';
             let isAdminReviewer = false;
             let isTravelerEditor = false;
@@ -4263,7 +4262,7 @@
 
                     sessionUser = payload.user || null;
                     const access = payload.access || {};
-                    applyRole(access.role || hintedRole || 'viewer', access.membershipRole || 'viewer', {
+                    applyRole(access.role || 'viewer', access.membershipRole || 'viewer', {
                         team: access.team,
                         canManageRoles: access.canManageRoles,
                     });
@@ -4561,7 +4560,7 @@
                     addSelection(tile);
                 });
 
-                previewedRequestId = Number.isFinite(Number(requestId)) ? Number(requestId) : null;
+                previewedRequestId = requestId;
                 previewedRequestScope = requestScope;
                 selectedTile = previewTiles[0] || null;
                 renderPanel(selectedTile);
@@ -5515,13 +5514,13 @@
                 }
 
                 myRequestList.innerHTML = myPendingRequests.map((request) => `
-                    <div class="request-card${previewedRequestScope === 'own' && previewedRequestId === request.id ? ' previewing-request' : ''}">
+                    <div id="map-request-own-${escapeHtml(request.id)}" tabindex="-1" class="request-card${previewedRequestScope === 'own' && previewedRequestId === request.id ? ' previewing-request' : ''}">
                         <p><strong>Requested:</strong> ${new Date(request.createdAt).toLocaleString()}</p>
                         ${buildRequestSummaryHtml(request)}
                         <div class="request-actions">
-                            <button type="button" onclick="editOwnMapRequest(${request.id})">Edit Request</button>
-                            <button type="button" onclick="previewOwnMapRequest(${request.id})">Preview My Request</button>
-                            <button type="button" onclick="cancelOwnMapRequest(${request.id})">Cancel My Request</button>
+                            <button type="button" onclick="editOwnMapRequest(${escapeHtml(JSON.stringify(request.id))})">Edit Request</button>
+                            <button type="button" onclick="previewOwnMapRequest(${escapeHtml(JSON.stringify(request.id))})">Preview My Request</button>
+                            <button type="button" onclick="cancelOwnMapRequest(${escapeHtml(JSON.stringify(request.id))})">Cancel My Request</button>
                         </div>
                     </div>
                 `).join('');
@@ -5771,16 +5770,16 @@
                 }
 
                 requestList.innerHTML = pendingRequests.map((request) => `
-                    <div class="request-card${previewedRequestScope === 'admin' && previewedRequestId === request.id ? ' previewing-request' : ''}">
-                        <p><strong>Traveler:</strong> ${request.requesterUsername}</p>
-                        <p><strong>Email:</strong> ${request.requesterEmail}</p>
+                    <div id="map-request-admin-${escapeHtml(request.id)}" tabindex="-1" class="request-card${previewedRequestScope === 'admin' && previewedRequestId === request.id ? ' previewing-request' : ''}">
+                        <p><strong>Traveler:</strong> ${escapeHtml(request.requesterUsername)}</p>
+                        <p><strong>Email:</strong> ${escapeHtml(request.requesterEmail)}</p>
                         <p><strong>Requested:</strong> ${new Date(request.createdAt).toLocaleString()}</p>
                         ${buildRequestSummaryHtml(request)}
                         <div class="request-actions">
-                            <button type="button" onclick="editMapRequest(${request.id})">Edit Request</button>
-                            <button type="button" onclick="previewMapRequest(${request.id})">Preview Request</button>
-                            <button type="button" onclick="acceptMapRequest(${request.id})">Accept Request</button>
-                            <button type="button" onclick="denyMapRequest(${request.id})">Deny Request</button>
+                            <button type="button" onclick="editMapRequest(${escapeHtml(JSON.stringify(request.id))})">Edit Request</button>
+                            <button type="button" onclick="previewMapRequest(${escapeHtml(JSON.stringify(request.id))})">Preview Request</button>
+                            <button type="button" onclick="acceptMapRequest(${escapeHtml(JSON.stringify(request.id))})">Accept Request</button>
+                            <button type="button" onclick="denyMapRequest(${escapeHtml(JSON.stringify(request.id))})">Deny Request</button>
                         </div>
                     </div>
                 `).join('');
@@ -6283,12 +6282,28 @@
                 await syncSessionRole();
                 await loadMapData();
 
+                const linkedTile = tiles.find(tile => tile.id === params.get('tile'));
+                if (linkedTile) {
+                    selectTile(linkedTile);
+                }
+
                 if (isAdminReviewer) {
                     await loadMapRequests();
                 }
 
                 if (sessionUser && isTravelerEditor) {
                     await loadMyPendingRequests();
+                }
+
+                const requestId = params.get('request');
+                if (requestId) {
+                    const scope = isAdminReviewer ? 'admin' : 'own';
+                    const card = document.getElementById(`map-request-${scope}-${requestId}`);
+                    if (card) {
+                        if (leftPanel.classList.contains('collapsed')) togglePanel('left');
+                        card.focus({ preventScroll: true });
+                        card.scrollIntoView({ block: 'nearest' });
+                    }
                 }
             }
 

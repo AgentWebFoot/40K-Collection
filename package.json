@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "node --import tsx preview/server.mjs",
-    "test": "node --import tsx --test preview/mock-api.test.mjs preview/hybrid-host.test.mjs"
+    "build": "node --import tsx preview/server.mjs --build",
+    "test": "node --import tsx --test preview/mock-api.test.mjs preview/expedition-storage.test.mjs preview/hybrid-host.test.mjs"
   },
   "engines": {
     "node": ">=20"

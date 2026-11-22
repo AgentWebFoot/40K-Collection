@@ -11,16 +11,25 @@ const storage = () => {
   return { getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value) };
 };
 const expeditionCall = (api, user, route, method = 'GET', body) => api(user, `http://localhost/expedition${route}`, { method, body: body && JSON.stringify(body) });
+function expeditionAdmin(db, username = 'Expedition Organizer') {
+  const admin = db.save(account('user', username));
+  return db.assignExpedition(admin.id, 'admin', '');
+}
+function expeditionTraveler(db, team) {
+  const player = db.save(account('user', `${team} traveler`));
+  return db.assignExpedition(player.id, 'traveler', team);
+}
+
 const enableBattles = { battlesEnabled: true };
 
 test('site accounts have only the four requested roles and start with the correct access', async () => {
-  assert.deepEqual(roles, ['user', 'traveler', 'admin', 'owner']);
+  assert.deepEqual(roles, ['user', 'traveler', 'manager', 'owner']);
   const api = createMockApi({ tiles: [] }, {});
   for (const role of roles) {
     const payload = await (await call(api, account(role), '/access')).json();
-    assert.equal(payload.access.canEditCompendium, ['admin', 'owner'].includes(role));
-    assert.equal(payload.access.canManageRoles, ['admin', 'owner'].includes(role));
-    assert.equal(payload.access.role, ['admin', 'owner'].includes(role) ? role : 'viewer');
+    assert.equal(payload.access.canEditCompendium, ['manager', 'owner'].includes(role));
+    assert.equal(payload.access.canManageRoles, ['manager', 'owner'].includes(role));
+    assert.equal(payload.access.role, ({ manager: 'admin', owner: 'owner' })[role] || 'viewer');
     assert.equal(payload.access.team, 0);
   }
 });
@@ -73,12 +82,26 @@ test('saving fails honestly when browser storage cannot persist', () => {
   assert.equal(db.list().length, 0);
 });
 
-test('admin can list saved accounts and assign membership used on subsequent requests', async () => {
+test('legacy site admins load as Managers with their existing Expedition assignments', () => {
+  const disk = storage();
+  const db = createAccountStore(disk);
+  const manager = db.save(account('manager'));
+  db.assignExpedition(manager.id, 'traveler', 'red');
+  const key = 'pyrrhic-preview-accounts-v1';
+  const oldState = JSON.parse(disk.getItem(key));
+  oldState.accounts[0].role = 'admin';
+  disk.setItem(key, JSON.stringify(oldState));
+  assert.deepEqual(createAccountStore(disk).find('Alice'), {
+    ...manager, expeditionMembershipRole: 'traveler', expeditionTeam: 'red',
+  });
+});
+
+test('site managers can list saved accounts and assign membership used on subsequent requests', async () => {
   const disk = storage();
   const db = createAccountStore(disk);
   const alice = db.save(account('traveler'));
   const api = createMockApi({}, {}, db);
-  const admin = account('admin', 'Manager');
+  const admin = account('manager', 'Manager');
   assert.equal((await call(api, alice, '/roles/list', 'POST')).status, 403);
   const { patrons } = await (await call(api, admin, '/roles/list', 'POST')).json();
   assert.equal(patrons[0].id, alice.id);
@@ -102,7 +125,7 @@ test('membership updates reject unauthorized access, invalid input, and owner de
   assert.equal((await update(owner, alice.id, 'owner', 1)).status, 400);
   assert.equal((await update(owner, alice.id, 'writer', 8)).status, 400);
   assert.equal((await update(owner, 999, 'writer', 1)).status, 404);
-  assert.equal((await update(account('admin'), owner.id, 'viewer', 1)).status, 403);
+  assert.equal((await update(account('manager'), owner.id, 'viewer', 1)).status, 403);
   assert.equal((await update(owner, owner.id, 'owner', 4)).status, 200);
   assert.equal(db.find('Owner').role, 'owner');
 });
@@ -125,7 +148,7 @@ test('map edits respect assigned permissions without changing the source data', 
   const api = createMockApi(seed, {}, db);
   assert.equal((await call(api, alice, '/map', 'POST', { map: { tiles: [], rows: 2 } })).status, 403);
   assert.equal((await call(api, alice, '/map-requests', 'POST', { changeSet: { changes: [] } })).status, 200);
-  assert.equal((await call(api, account('admin'), '/map', 'POST', { map: { tiles: [], rows: 2 } })).status, 200);
+  assert.equal((await call(api, account('manager'), '/map', 'POST', { map: { tiles: [], rows: 2 } })).status, 200);
   assert.equal((await (await call(api, alice, '/map')).json()).rows, 2);
   assert.equal(seed.rows, 1);
 });
@@ -146,7 +169,7 @@ test('Expedition assignments persist separately from existing Pyrrhic War assign
   const alice = db.save(account('traveler'));
   db.assign(alice.id, 'writer', 3);
   const api = createExpeditionApi({ tiles: [] }, db);
-  const admin = account('admin', 'Manager');
+  const admin = expeditionAdmin(db, 'Organizer');
   assert.equal((await (await expeditionCall(api, alice, '/access')).json()).access.role, 'viewer');
   const assigned = await expeditionCall(api, admin, '/roles/set-role', 'POST', { targetUserId: alice.id, role: 'traveler', team: 'purple' });
   assert.equal(assigned.status, 200);
@@ -165,7 +188,8 @@ test('Expedition settings enforce authority and the correct game roles and teams
   const db = createAccountStore();
   const alice = db.save(account('user'));
   const owner = db.save(account('owner', 'Owner'));
-  const admin = db.save(account('admin', 'Manager'));
+  const admin = expeditionAdmin(db, 'Organizer');
+  const manager = db.save(account('manager', 'Manager'));
   const api = createExpeditionApi({}, db);
   const update = (user, id, role, team) => expeditionCall(api, user, '/roles/set-role', 'POST', { targetUserId: id, role, team });
   assert.equal((await expeditionCall(api, alice, '/roles/list')).status, 403);
@@ -174,9 +198,30 @@ test('Expedition settings enforce authority and the correct game roles and teams
   assert.equal((await update(owner, alice.id, 'traveler', 1)).status, 400);
   assert.equal((await update(admin, owner.id, 'owner', 'red')).status, 403);
   assert.equal((await update(owner, owner.id, 'owner', 'red')).status, 200);
-  // The original board sends "owner" for all disabled inherited-role selects.
-  assert.equal((await update(owner, admin.id, 'owner', 'blue')).status, 200);
-  assert.equal((await (await expeditionCall(api, admin, '/access')).json()).access.role, 'admin');
+  const { patrons } = await (await expeditionCall(api, manager, '/roles/list')).json();
+  const member = patrons.find(item => item.id === alice.id);
+  assert.equal(member.canEditExpeditionRole, true);
+  assert.equal(member.canEditExpeditionTeam, false);
+  assert.equal((await update(manager, owner.id, 'admin', 'blue')).status, 403);
+  assert.equal((await update(owner, alice.id, 'traveler', 'red')).status, 200);
+  for (const role of ['viewer', 'admin', 'traveler']) {
+    const updated = await (await update(manager, alice.id, role, 'blue')).json();
+    assert.equal(updated.patron.expeditionRole, role);
+    assert.equal(updated.patron.expeditionTeam, 'red');
+    assert.equal(updated.patron.siteRole, 'user');
+  }
+  assert.equal((await expeditionCall(api, manager, '/round', 'POST', { round: 2, expectedRound: 1 })).status, 403);
+  assert.equal((await expeditionCall(api, manager, '/map', 'POST', { map: { tiles: [] } })).status, 403);
+  assert.equal((await call(createMockApi({}, {}, db), admin, '/roles/list')).status, 403);
+  assert.equal((await update(admin, manager.id, 'admin', 'blue')).status, 200);
+  const { user, access } = await (await expeditionCall(api, manager, '/access')).json();
+  assert.equal(user.role, 'manager');
+  assert.equal(access.role, 'admin');
+  assert.equal(access.team, 'blue');
+  assert.equal((await update(owner, manager.id, 'traveler', 'blue')).status, 200);
+  assert.equal((await expeditionCall(api, manager, '/roles/list')).status, 200);
+  assert.equal((await expeditionCall(api, manager, '/map', 'POST', { map: { tiles: [] } })).status, 403);
+  assert.equal(db.find('Manager').role, 'manager');
 });
 
 test('Expedition maps are isolated from Pyrrhic War and source seeds', async () => {
@@ -185,7 +230,7 @@ test('Expedition maps are isolated from Pyrrhic War and source seeds', async () 
   const expedition = createExpeditionApi(seed, db);
   const pyrrhic = createMockApi({ tiles: [], rows: 21 }, {}, db);
   assert.equal((await expeditionCall(expedition, account('user'), '/map', 'POST', { map: { tiles: [], round: 2 } })).status, 403);
-  assert.equal((await expeditionCall(expedition, account('admin'), '/map', 'POST', { map: { tiles: [], round: 2 } })).status, 200);
+  assert.equal((await expeditionCall(expedition, expeditionAdmin(db), '/map', 'POST', { map: { tiles: [], round: 2 } })).status, 200);
   assert.equal((await (await expeditionCall(expedition, account('user'), '/map')).json()).round, 2);
   assert.deepEqual(await (await call(pyrrhic, account('user'), '/map')).json(), { tiles: [], rows: 21 });
   assert.equal(seed.round, 1);
@@ -196,7 +241,7 @@ test('Expedition menu round changes persist without overwriting the Map or accep
   const browserStorage = storage();
   const seed = { round: 2, tiles: [{ id: '0-0', marker: 'red' }] };
   const api = createExpeditionApi(seed, db, browserStorage);
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const viewer = account('user');
   const setRound = (user, round, expectedRound = 2) => expeditionCall(api, user, '/round', 'POST', { round, expectedRound });
 
@@ -224,7 +269,7 @@ test('Expedition Supply Point costs are admin-only, validated, and survive map s
   const settingsStorage = storage();
   const seed = { tiles: [], round: 1 };
   const api = createExpeditionApi(seed, db, settingsStorage);
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const viewer = account('user');
   const costs = { manoeuvre: 2, regroup: 4, scout: 0, encamp: 5, demolish: 6, search: 1 };
   const save = (user, supplyPointCosts) => expeditionCall(api, user, '/supply-point-costs', 'POST', { supplyPointCosts });
@@ -253,7 +298,7 @@ test('Expedition movement limits are admin-only and persist independently of Sup
   const costs = { manoeuvre: 1, regroup: 1, scout: 1, encamp: 2, demolish: 3, search: 0 };
   const seed = { tiles: [], movementLimit: 3 };
   const api = createExpeditionApi(seed, db, settingsStorage);
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const viewer = account('user');
   const saveLimit = (user, movementLimit) => expeditionCall(api, user, '/movement-limit', 'POST', { movementLimit });
 
@@ -278,7 +323,7 @@ test('Expedition point rewards persist and drive battle and resupply approvals',
   const settingsStorage = storage();
   const traveler = db.save(account('traveler'));
   db.assignExpedition(traveler.id, 'traveler', 'red');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const seed = { tiles: [{ id: '0-0', marker: 'red' }], teamStats: { blue: { supplyPoints: 8, campaignPoints: 0 } } };
   const api = createExpeditionApi(seed, db, settingsStorage, enableBattles);
   const { readSettings } = globalThis.ExpeditionPointRewards;
@@ -305,6 +350,8 @@ test('Expedition point rewards persist and drive battle and resupply approvals',
   assert.equal((await accept(traveler, battle)).status, 403);
   const battleResult = await (await accept(admin, battle)).json();
   assert.equal(battleResult.request.status, 'accepted');
+  assert.equal(battleResult.request.approvalMethod, 'admin');
+  assert.deepEqual(battleResult.request.review.confirmedTeams, []);
   assert.equal(battleResult.map.teamStats.red.campaignPoints, 6);
   assert.equal(battleResult.map.teamStats.blue.supplyPoints, 10);
   assert.equal((await accept(admin, battle)).status, 404);
@@ -325,36 +372,62 @@ test('Expedition Battles shows reports to participants and persists approvals wi
   const blue = player('Blue player', 'blue');
   const green = player('Green player', 'green');
   const yellow = player('Yellow player', 'yellow');
-  const admin = account('admin', 'Reviewer');
+  const admin = expeditionAdmin(accounts, 'Reviewer');
   const browserStorage = storage();
   const seed = { tiles: [{ id: '1-2', marker: 'blue' }, { id: '1-3', marker: 'yellow' }] };
   let api = createExpeditionApi(seed, accounts, browserStorage, enableBattles);
-  const list = async user => (await (await expeditionCall(api, user, '/battles')).json()).battles;
+  const list = async user => (await expeditionCall(api, user, '/battles')).json();
   const changeSet = {
     requestType: 'battle', battleType: 'multiplayer-op', requesterTeam: 'red',
     battleOpponents: ['blue', 'green'], battleWinners: ['blue', 'green'], battleLocation: '1-2',
-    submissionRound: 2, comment: 'Night operation.',
+    submissionRound: 2, battleName: 'The Lantern Gate', battleDate: '2026-11-19',
+    lore: 'The lights went out.\nThe gate held.', comment: 'Night operation.',
   };
   const submit = battle => expeditionCall(api, red, '/map-requests', 'POST', { changeSet: battle });
   assert.equal((await submit({ ...changeSet, battleLocation: '1-3' })).status, 400);
   assert.equal((await submit({ ...changeSet, battleWinners: ['yellow'] })).status, 400);
   const { request } = await (await submit(changeSet)).json();
-  assert.equal((await list(red))[0].own, true);
-  assert.equal((await list(blue))[0].own, false);
-  assert.equal((await list(green))[0].changeSet.battleLocation, '1-2');
-  assert.equal((await list(yellow)).length, 0);
-  assert.equal((await list(admin)).length, 1);
+  assert.equal((await list(red)).pendingBattles[0].own, true);
+  assert.equal((await list(red)).pendingBattles[0].review.canConfirm, false);
+  assert.equal((await list(blue)).pendingBattles[0].review.canConfirm, true);
+  assert.equal((await list(green)).pendingBattles[0].changeSet.battleLocation, '1-2');
+  assert.deepEqual((await list(yellow)).pendingBattles, []);
+  assert.deepEqual((await list(admin)).battles, []);
 
   api = createExpeditionApi(seed, accounts, browserStorage, enableBattles);
-  const accept = user => expeditionCall(api, user, '/map-requests/accept', 'POST', { requestId: request.id });
+  const review = (user, action, expectedRevision) => expeditionCall(api, user, `/map-requests/${action}`, 'POST', { requestId: request.id, expectedRevision });
+  const accept = user => review(user, 'accept');
   assert.equal((await accept(blue)).status, 403);
-  assert.equal((await accept(admin)).status, 200);
+  assert.equal((await review(red, 'confirm')).status, 403);
+  assert.equal((await review(yellow, 'confirm')).status, 404);
+  assert.equal((await review(blue, 'confirm', request.revision)).status, 200);
+  assert.deepEqual((await (await review(blue, 'confirm')).json()).request.review.confirmedTeams, ['blue']);
+  assert.equal((await list(admin)).pendingBattles[0].review.canApprove, true);
+  assert.deepEqual((await list(admin)).battles, []);
+  const updated = await expeditionCall(api, red, '/map-requests/update', 'POST', { requestId: request.id, changeSet: { ...changeSet, comment: 'Revised operation.' } });
+  assert.equal(updated.status, 200);
+  assert.deepEqual((await updated.json()).request.review.confirmedTeams, []);
+  assert.equal((await review(green, 'confirm', request.revision)).status, 409);
+  assert.equal((await review(blue, 'confirm')).status, 200);
+  api = createExpeditionApi(seed, accounts, browserStorage, enableBattles);
+  assert.deepEqual((await list(admin)).battles, []);
+  assert.equal((await review(admin, 'accept', request.revision)).status, 409);
+  assert.equal((await (await expeditionCall(api, blue, '/map')).json()).teamStats?.blue?.campaignPoints ?? 0, 0);
+  const finalized = await review(green, 'confirm');
+  assert.equal(finalized.status, 200);
+  assert.equal((await finalized.json()).request.status, 'accepted');
   api = createExpeditionApi(seed, accounts, browserStorage, enableBattles);
   assert.equal((await accept(admin)).status, 404);
-  const [result] = await list(blue);
+  const { battles: [result], pendingBattles } = await list(blue);
+  assert.deepEqual(pendingBattles, []);
+  assert.deepEqual((await list(yellow)).battles, []);
   assert.equal(result.status, 'accepted');
-  assert.equal(result.reviewedByUsername, 'Reviewer');
-  assert.equal(result.changeSet.comment, 'Night operation.');
+  assert.equal(result.reviewedByUsername, 'Green player');
+  assert.equal(result.approvalMethod, 'participants');
+  assert.equal(result.changeSet.comment, 'Revised operation.');
+  assert.equal(result.changeSet.battleName, 'The Lantern Gate');
+  assert.equal(result.changeSet.battleDate, '2026-11-19');
+  assert.equal(result.changeSet.lore, 'The lights went out.\nThe gate held.');
   assert.equal(result.awardedPoints.length, 3);
   const map = await (await expeditionCall(api, blue, '/map')).json();
   assert.equal(map.teamStats.blue.campaignPoints, 3);
@@ -362,16 +435,81 @@ test('Expedition Battles shows reports to participants and persists approvals wi
   assert.equal(map.teamStats.red.supplyPoints, 2);
 });
 
+test('either Expedition side can file a shared report and choose a winner or draw', async () => {
+  const db = createAccountStore();
+  const red = db.save(account('user', 'Red Reporter'));
+  db.assignExpedition(red.id, 'traveler', 'red');
+  const blue = db.save(account('user', 'Blue Reporter'));
+  db.assignExpedition(blue.id, 'traveler', 'blue');
+  const seed = { tiles: [{ id: '1-2', marker: 'blue' }] };
+  for (const [reporter, other, requesterTeam, opponent] of [[red, blue, 'red', 'blue'], [blue, red, 'blue', 'red']]) {
+    const api = createExpeditionApi(seed, db);
+    const submit = battleOutcome => expeditionCall(api, reporter, '/map-requests', 'POST', {
+      changeSet: { requestType: 'battle', battleType: 'standard', requesterTeam, battleOpponent: opponent, battleLocation: '1-2', battleOutcome },
+    });
+    const list = async user => (await expeditionCall(api, user, '/battles')).json();
+    assert.equal((await submit('green')).status, 400);
+    const { request } = await (await submit('blue')).json();
+    const [shared] = (await list(other)).pendingBattles;
+    assert.equal(shared.id, request.id);
+    assert.equal(shared.changeSet.battleOutcome, 'blue');
+    assert.equal(shared.own, false);
+    assert.equal((await list(reporter)).pendingBattles.length, 1);
+    const approved = await expeditionCall(api, other, '/map-requests/confirm', 'POST', { requestId: request.id });
+    assert.equal(approved.status, 200);
+    const { request: accepted } = await approved.json();
+    assert.deepEqual(accepted.awardedPoints, [
+      { team: 'blue', field: 'campaignPoints', amount: 2 },
+      { team: 'red', field: 'supplyPoints', amount: 1 },
+    ]);
+    const { request: drawn } = await (await submit('draw')).json();
+    assert.equal((await list(other)).pendingBattles.find(battle => battle.id === drawn.id).changeSet.battleOutcome, 'draw');
+  }
+});
+
+test('a same-team Joint Op requires confirmation by a teammate other than the author', async () => {
+  const db = createAccountStore();
+  const reporter = expeditionTraveler(db, 'red');
+  const teammate = db.save(account('user', 'Joint partner'));
+  db.assignExpedition(teammate.id, 'traveler', 'red');
+  const viewer = db.save(account('user', 'Red viewer'));
+  db.assignExpedition(viewer.id, 'viewer', 'red');
+  const admin = expeditionAdmin(db);
+  const api = createExpeditionApi({ tiles: [{ id: '1-1', marker: 'red' }] }, db);
+  const submit = () => expeditionCall(api, reporter, '/map-requests', 'POST', {
+    changeSet: {
+      requestType: 'battle', battleType: 'joint-op', requesterTeam: 'red', battleOpponent: 'red',
+      battleLocation: '1-1', battleOutcome: 'joint-win',
+    },
+  });
+  const { request } = await (await submit()).json();
+  const review = (user, action, requestId = request.id) => expeditionCall(api, user, `/map-requests/${action}`, 'POST', { requestId });
+  assert.deepEqual(request.review.requiredTeams, ['red']);
+  assert.equal((await review(reporter, 'confirm')).status, 403);
+  assert.equal((await review(viewer, 'confirm')).status, 403);
+  const confirmed = await review(teammate, 'confirm');
+  assert.equal(confirmed.status, 200);
+  assert.equal((await confirmed.json()).request.status, 'accepted');
+
+  const { request: denied } = await (await submit()).json();
+  assert.equal((await review(admin, 'deny', denied.id)).status, 200);
+  const log = await (await expeditionCall(api, reporter, '/battles')).json();
+  assert.deepEqual(log.pendingBattles, []);
+  assert.deepEqual(log.battles.map(item => item.id), [request.id]);
+});
+
 test('Expedition battle settings and Map reward settings save independently', async () => {
-  const api = createExpeditionApi({ tiles: [] }, createAccountStore(), storage(), enableBattles);
+  const db = createAccountStore();
+  const api = createExpeditionApi({ tiles: [] }, db, storage(), enableBattles);
   const { battleFields, mapGroups, readSettings } = globalThis.ExpeditionPointRewards;
   const defaults = readSettings();
   const valuesFor = fields => Object.fromEntries(fields.map(([key]) => [key, defaults[key]]));
   const battle = { ...valuesFor(battleFields), jointCampaign: 7 };
   const mapRewards = { ...valuesFor(mapGroups.flatMap(([, fields]) => fields)), baseTarget: 4 };
   const save = (user, route, pointRewards) => expeditionCall(api, user, route, 'POST', { pointRewards });
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   assert.equal((await save(account('user'), '/battle-settings', battle)).status, 403);
+  assert.equal((await save(account('manager'), '/battle-settings', battle)).status, 403);
   assert.equal((await save(admin, '/battle-settings', { ...battle, baseTarget: 2 })).status, 400);
   assert.equal((await save(admin, '/battle-settings', battle)).status, 200);
   assert.equal((await save(admin, '/point-rewards', mapRewards)).status, 200);
@@ -380,9 +518,327 @@ test('Expedition battle settings and Map reward settings save independently', as
   assert.equal(saved.jointCampaign, 7);
 });
 
+test('scored battles project rewards and require Admin approval for manual payouts', async () => {
+  const db = createAccountStore();
+  const red = expeditionTraveler(db, 'red');
+  const blue = expeditionTraveler(db, 'blue');
+  const admin = expeditionAdmin(db);
+  const seed = { tiles: [{ id: '1-1', marker: 'red' }], teamStats: { blue: { supplyPoints: 9, campaignPoints: 0 } } };
+  const api = createExpeditionApi(seed, db, storage());
+  const call = (user, route, body) => expeditionCall(api, user, route, body ? 'POST' : 'GET', body);
+  const changeSet = {
+    requestType: 'battle', battleType: 'standard', requesterTeam: 'red', battleOpponent: 'blue',
+    battleLocation: '1-1', battleScores: { red: 9, blue: 6 },
+  };
+  for (const battleScores of [{ red: 9 }, { red: 9, blue: -1 }, { red: 9, blue: 0.5 }, { red: 9, blue: 0, green: 1 }]) {
+    assert.equal((await call(red, '/map-requests', { changeSet: { ...changeSet, battleScores } })).status, 400);
+  }
+  for (const rewardOverrides of [{ green: { credits: 4 } }, { red: { supplyPoints: 11 } }, { red: { credits: -1 } }]) {
+    assert.equal((await call(red, '/map-requests', { changeSet, rewardOverrides })).status, 400);
+  }
+  const rewardOverrides = { red: { campaignPoints: 4, credits: 7 }, blue: { supplyPoints: 3 } };
+  const { request } = await (await call(red, '/map-requests', { changeSet, rewardOverrides })).json();
+  assert.equal(request.review.requiresAdminApproval, true);
+  assert.deepEqual(request.projectedRewards, [
+    { team: 'red', campaignPoints: 4, supplyPoints: 0, credits: 7 },
+    { team: 'blue', campaignPoints: 0, supplyPoints: 1, credits: 0, cappedRewards: { supplyPoints: 3 } },
+  ]);
+  const review = { requestId: request.id, expectedRevision: request.revision };
+  const { request: confirmed } = await (await call(blue, '/map-requests/confirm', review)).json();
+  assert.equal(confirmed.status, 'pending');
+  assert.deepEqual(confirmed.review.confirmedTeams, ['blue']);
+  assert.equal((await call(red, '/map-requests/accept', review)).status, 403);
+  assert.deepEqual((await (await call(red, '/battles')).json()).battles, []);
+  assert.deepEqual((await (await call(red, '/map')).json()).teamStats, seed.teamStats);
+  const { request: approved, map } = await (await call(admin, '/map-requests/accept', review)).json();
+  assert.equal(approved.approvalMethod, 'admin');
+  assert.deepEqual(map.teamStats, {
+    red: { campaignPoints: 4, supplyPoints: 0, credits: 7 },
+    blue: { campaignPoints: 0, supplyPoints: 10 },
+  });
+  assert.equal((await call(admin, '/map-requests/accept', review)).status, 404);
+
+  const outside = { ...changeSet, battleOpponent: 'outside-player', battleScores: { red: 5, 'outside-player': 5 } };
+  const { request: immediate } = await (await call(red, '/map-requests', { changeSet: outside })).json();
+  assert.equal(immediate.status, 'accepted');
+  const { request: expedited } = await (await call(red, '/map-requests', {
+    changeSet: outside, rewardOverrides: { red: { credits: 1 } },
+  })).json();
+  assert.equal(expedited.status, 'pending');
+  assert.equal(expedited.review.requiresAdminApproval, true);
+});
+
+test('Multiplayer scores pay only the highest tied teams the draw reward', async () => {
+  const db = createAccountStore();
+  const admin = expeditionAdmin(db);
+  const api = createExpeditionApi({ tiles: [{ id: '1-1', marker: 'red' }] }, db);
+  const call = (route, body) => expeditionCall(api, admin, route, 'POST', body);
+  const { request } = await (await call('/map-requests', { changeSet: {
+    requestType: 'battle', battleType: 'multiplayer-op', requesterTeam: 'red', battleOpponent: 'blue',
+    battleOpponents: ['blue', 'green', 'outside-player'], battleLocation: '1-1',
+    battleScores: { red: 7, blue: 9, green: 9, 'outside-player': 7 },
+  } })).json();
+  assert.deepEqual(request.projectedRewards, [
+    { team: 'red', campaignPoints: 0, supplyPoints: 2, credits: 0 },
+    { team: 'blue', campaignPoints: 4, supplyPoints: 0, credits: 0 },
+    { team: 'green', campaignPoints: 4, supplyPoints: 0, credits: 0 },
+  ]);
+  const { request: approved } = await (await call('/map-requests/accept', { requestId: request.id })).json();
+  assert.deepEqual(approved.awardedPoints, [
+    { team: 'red', field: 'supplyPoints', amount: 2 },
+    { team: 'blue', field: 'campaignPoints', amount: 4 },
+    { team: 'green', field: 'campaignPoints', amount: 4 },
+  ]);
+});
+
+test('only Expedition admins can edit an approved battle, including reports on historical tiles', async () => {
+  const db = createAccountStore();
+  const reporter = expeditionTraveler(db, 'red');
+  const manager = db.save(account('manager', 'Site Manager'));
+  db.assignExpedition(manager.id, 'traveler', 'red');
+  const admin = expeditionAdmin(db);
+  const disk = storage();
+  const seed = { tiles: [{ id: '1-1', marker: 'red' }] };
+  let api = createExpeditionApi(seed, db, disk);
+  const call = (user, route, body) => expeditionCall(api, user, route, body ? 'POST' : 'GET', body);
+  const changeSet = {
+    requestType: 'battle', battleType: 'standard', requesterTeam: 'red',
+    battleOpponent: 'outside-player', battleLocation: '1-1', battleOutcome: 'red',
+    battleName: 'Old report',
+  };
+  const { request } = await (await call(reporter, '/map-requests', { changeSet })).json();
+  assert.equal(request.status, 'accepted');
+  assert.equal(request.review.canEdit, false);
+
+  api = createExpeditionApi({ tiles: [{ id: '1-1', marker: 'blue' }] }, db, disk);
+  const edit = (user, fields) => call(user, '/map-requests/update', {
+    requestId: request.id, expectedRevision: request.revision, changeSet: { ...changeSet, ...fields },
+  });
+  assert.equal((await edit(reporter, { battleName: 'Reporter edit' })).status, 403);
+  assert.equal((await edit(manager, { battleName: 'Manager edit' })).status, 403);
+  assert.equal((await edit(admin, { battleLocation: '9-9' })).status, 400);
+  const response = await edit(admin, { battleName: 'Corrected report' });
+  assert.equal(response.status, 200);
+  const { request: updated } = await response.json();
+  assert.equal(updated.status, 'accepted');
+  assert.equal(updated.review.canEdit, true);
+  assert.equal(updated.changeSet.battleLocation, '1-1');
+  assert.equal(updated.changeSet.battleName, 'Corrected report');
+  assert.equal(updated.revision, request.revision + 1);
+  assert.equal(updated.reviewedAt, request.reviewedAt);
+  assert.deepEqual(updated.awardedPoints, request.awardedPoints);
+  assert.equal((await edit(admin, { battleName: 'Stale edit' })).status, 409);
+  const log = await (await call(reporter, '/battles')).json();
+  assert.equal(log.battles[0].changeSet.battleName, 'Corrected report');
+  assert.deepEqual(log.pendingBattles, []);
+  assert.equal((await (await call(admin, '/map')).json()).teamStats.red.campaignPoints, 2);
+});
+
+test('battle loadouts reserve and consume purchased copies once while faction equipment stays reusable', async () => {
+  const db = createAccountStore();
+  const admin = expeditionAdmin(db);
+  const red = expeditionTraveler(db, 'red');
+  const blue = expeditionTraveler(db, 'blue');
+  const green = expeditionTraveler(db, 'green');
+  const disk = storage();
+  const seed = { tiles: [{ id: '1-1', marker: 'blue' }] };
+  let api = createExpeditionApi(seed, db, disk);
+  const call = (user, route, body, method = body ? 'POST' : 'GET') => expeditionCall(api, user, route, method, body);
+  const { items: [kit] } = await (await call(admin, '/shop', {
+    name: 'Medkit', description: 'A field dressing.', action: 'Apply dressing.', cost: 0,
+  })).json();
+  assert.equal((await call(admin, '/shop', { id: kit.id, stock: { perUser: 2, total: 2 } }, 'PATCH')).status, 200);
+  assert.equal((await call(blue, '/shop/purchase', { id: kit.id, quantity: 2 })).status, 201);
+  assert.equal((await call(blue, '/teams/blue/faction-equipment', {
+    slot: 1, equipment: { name: 'Optics', description: '' }, expectedEquipment: null,
+  })).status, 200);
+  const options = async () => (await (await call(blue, '/battle-equipment?team=blue')).json()).equipment;
+  const teamGear = async () => (await (await call(blue, '/teams')).json()).teams.find(team => team.name === 'blue').items;
+  const [faction, purchased] = await options();
+  assert.equal(purchased.action, 'Apply dressing.');
+  assert.equal((await teamGear())[0].action, 'Apply dressing.');
+  const optics = { id: faction.id, quantity: 1 };
+  const medkit = { id: purchased.id, quantity: 1 };
+  assert.equal(purchased.available, 2);
+  assert.equal((await call(red, '/battle-equipment?team=blue')).status, 403);
+
+  const standard = {
+    requestType: 'battle', battleType: 'standard', requesterTeam: 'blue',
+    battleOpponent: 'red', battleLocation: '1-1', battleOutcome: 'blue',
+  };
+  const { request: canceled } = await (await call(blue, '/map-requests', { changeSet: standard, equipment: [medkit] })).json();
+  assert.equal((await options())[1].available, 1);
+  const editable = await call(blue, `/battle-equipment?team=blue&edit=${canceled.id}`);
+  assert.equal((await editable.json()).equipment[1].available, 2);
+  assert.equal((await call(blue, '/map-requests/cancel-own', { requestId: canceled.id })).status, 200);
+  assert.equal((await options())[1].available, 2);
+  const { request: battle } = await (await call(red, '/map-requests', { changeSet: {
+    ...standard, battleType: 'multiplayer-op', requesterTeam: 'red', battleOpponent: 'blue', battleOpponents: ['blue', 'green'],
+  } })).json();
+  const confirm = (player, equipment) => call(player, '/map-requests/confirm', { requestId: battle.id, equipment });
+  assert.equal((await confirm(blue, [{ ...medkit, quantity: 5 }])).status, 400);
+  assert.equal((await confirm(blue, [optics, optics])).status, 400);
+  assert.equal((await confirm(blue, [{ ...optics, quantity: 2 }])).status, 409);
+  assert.equal((await confirm(green, [medkit])).status, 409);
+  assert.equal((await confirm(blue, [optics, medkit])).status, 200);
+  assert.equal((await options())[1].available, 1);
+  assert.equal((await teamGear())[0].quantity, 2);
+  assert.equal((await call(blue, '/map-requests', {
+    changeSet: { ...standard, battleOpponent: 'outside-player' }, equipment: [{ ...medkit, quantity: 2 }],
+  })).status, 409);
+
+  api = createExpeditionApi(seed, db, disk);
+  const completed = await confirm(green, []);
+  assert.equal(completed.status, 200);
+  const { request: approved } = await completed.json();
+  assert.equal(approved.status, 'accepted');
+  assert.deepEqual(approved.equipmentUsed.find(use => use.team === 'blue').items, [
+    { ...optics, name: 'Optics', kind: 'faction' }, { ...medkit, name: 'Medkit', kind: 'purchased' },
+  ]);
+  assert.equal((await confirm(green, [])).status, 404);
+  assert.equal((await teamGear())[0].quantity, 1);
+  const edited = await call(admin, '/map-requests/update', {
+    requestId: approved.id, expectedRevision: approved.revision,
+    changeSet: { ...approved.changeSet, battleName: 'Updated equipment report' }, equipment: [medkit],
+  });
+  assert.equal(edited.status, 200);
+  assert.deepEqual((await edited.json()).request.equipmentUsed, approved.equipmentUsed);
+  assert.equal((await teamGear())[0].quantity, 1);
+
+  const last = await call(blue, '/map-requests', {
+    changeSet: { ...standard, battleOpponent: 'outside-player' }, equipment: [optics, medkit],
+  });
+  assert.equal((await last.json()).request.status, 'accepted');
+  api = createExpeditionApi(seed, db, disk);
+  assert.deepEqual((await options()).filter(item => item.kind !== 'universal'), [faction]);
+  assert.deepEqual(await teamGear(), []);
+  assert.equal((await call(blue, '/shop/purchase', { id: kit.id, quantity: 1 })).status, 409);
+});
+
+test('all teams can reuse the Universal Equipment catalog and only Expedition admins can edit its rules', async () => {
+  const db = createAccountStore();
+  const admin = expeditionAdmin(db);
+  const red = expeditionTraveler(db, 'red');
+  const blue = expeditionTraveler(db, 'blue');
+  const disk = storage();
+  const seed = { tiles: [{ id: '1-1', marker: 'red' }] };
+  let api = createExpeditionApi(seed, db, disk);
+  const options = async (player, team) =>
+    (await (await expeditionCall(api, player, `/battle-equipment?team=${team}`)).json()).equipment.filter(item => item.kind === 'universal');
+  const save = (player, body) => expeditionCall(api, player, '/universal-equipment', 'PATCH', body);
+  const { universalEquipment } = await (await expeditionCall(api, red, '/teams')).json();
+  assert.deepEqual(universalEquipment.map(item => item.name), [
+    'Ammo Cache', 'Portable Barricade', 'Razor Wire', 'Comms Device', 'Mines', 'Light Barricade',
+    'Utility Grenades', 'Heavy Barricade', 'Ladders', 'Explosive Grenades', 'Breaching Charge',
+  ]);
+  assert.ok(universalEquipment.every(item => item.description === '' && !item.action));
+  const body = { id: 'ammo-cache', description: '  Fixture ability.  ', action: '  Fixture action.  ', expectedDescription: '', expectedAction: '' };
+  assert.equal((await save(red, body)).status, 403);
+  assert.equal((await save(admin, { ...body, id: 'made-up-item' })).status, 404);
+  assert.equal((await save(admin, body)).status, 200);
+  assert.equal((await save(admin, body)).status, 409);
+  api = createExpeditionApi(seed, db, disk);
+  const catalog = await options(red, 'red');
+  assert.deepEqual(await options(blue, 'blue'), catalog);
+  assert.deepEqual(catalog[0], {
+    id: 'universal:ammo-cache', name: 'Ammo Cache', description: 'Fixture ability.', action: 'Fixture action.',
+    available: 1, kind: 'universal',
+  });
+  const submit = equipment => expeditionCall(api, red, '/map-requests', 'POST', {
+    equipment, changeSet: {
+      requestType: 'battle', battleType: 'standard', requesterTeam: 'red',
+      battleOpponent: 'outside-player', battleLocation: '1-1', battleScores: { red: 2, 'outside-player': 1 },
+    },
+  });
+  assert.equal((await submit(catalog.slice(0, 5).map(item => ({ id: item.id, quantity: 1 })))).status, 400);
+  for (let use = 0; use < 2; use++) {
+    const { request } = await (await submit([{ id: catalog[0].id, quantity: 1 }])).json();
+    assert.equal(request.status, 'accepted');
+    assert.equal(request.equipmentUsed[0].items[0].kind, 'universal');
+  }
+  assert.deepEqual(await options(red, 'red'), catalog);
+  const cleared = await save(admin, { ...body, action: '', expectedDescription: 'Fixture ability.', expectedAction: 'Fixture action.' });
+  assert.equal(cleared.status, 200);
+  assert.equal((await cleared.json()).equipment.action, undefined);
+});
+
+test('Expedition rewards distinguish victors, draws and losers for each battle size', () => {
+  const { battleAwards, readSettings } = globalThis.ExpeditionPointRewards;
+  const teams = ['red', 'blue', 'green', 'yellow'];
+  const awards = (battleType, battleOutcome, extra = {}, settings) => battleAwards({
+    battleType, battleOutcome, requesterTeam: 'red', battleOpponent: 'blue', ...extra,
+  }, settings, teams);
+  const campaign = (team, amount) => [team, 'campaignPoints', amount];
+  const supply = (team, amount) => [team, 'supplyPoints', amount];
+
+  assert.deepEqual(awards('standard', 'red'), [campaign('red', 2), supply('blue', 1)]);
+  assert.deepEqual(awards('standard', 'draw'), [supply('red', 1), supply('blue', 1)]);
+  assert.deepEqual(awards('joint-op', 'joint-win'), [campaign('red', 1), campaign('blue', 1)]);
+  assert.deepEqual(awards('joint-op', 'joint-loss'), []);
+  assert.deepEqual(awards('joint-op', 'draw'), []);
+  assert.deepEqual(awards('adversary-op', 'blue'), [campaign('blue', 3), supply('red', 2)]);
+  assert.deepEqual(awards('adversary-op', 'draw'), [supply('red', 2), supply('blue', 2)]);
+  const three = { battleOpponents: ['blue', 'green'] };
+  const four = { battleOpponents: ['blue', 'green', 'yellow'] };
+  const tied = { battleTiedTeams: ['blue', 'green'] };
+  assert.deepEqual(awards('multiplayer-op', 'blue', three), [
+    supply('red', 2), campaign('blue', 3), supply('green', 2),
+  ]);
+  assert.deepEqual(awards('multiplayer-op', 'blue', four), [
+    supply('red', 2), campaign('blue', 4), supply('green', 2), supply('yellow', 2),
+  ]);
+  assert.deepEqual(awards('multiplayer-op', 'draw', { ...three, ...tied }), [
+    supply('red', 2), campaign('blue', 3), campaign('green', 3),
+  ]);
+  assert.deepEqual(awards('multiplayer-op', 'draw', { ...four, ...tied }), [
+    supply('red', 2), campaign('blue', 4), campaign('green', 4), supply('yellow', 2),
+  ]);
+  assert.deepEqual(awards('compound-op', 'draw'), []);
+  assert.equal(readSettings({ multiplayerWinCampaignPerTeam: 2 }).multiplayerWin3Campaign, 6);
+  assert.equal(readSettings({ multiplayerWinCampaignPerTeam: 2 }).multiplayerDraw4Campaign, 8);
+});
+
+test('a Multiplayer draw pays the configured tied and losing teams exactly once on approval', async () => {
+  const db = createAccountStore();
+  const admin = expeditionAdmin(db);
+  const opponents = ['blue', 'green', 'yellow'].map(team => expeditionTraveler(db, team));
+  const disk = storage();
+  const seed = { tiles: [{ id: '1-1', marker: 'red' }] };
+  let api = createExpeditionApi(seed, db, disk);
+  const call = (route, body) => expeditionCall(api, admin, route, body ? 'POST' : 'GET', body);
+  const { battleFields, readSettings } = globalThis.ExpeditionPointRewards;
+  const settings = readSettings({ multiplayerDraw4Campaign: 6, multiplayerDraw4Supply: 1, multiplayerLossSupply: 3 });
+  const pointRewards = Object.fromEntries(battleFields.map(([key]) => [key, settings[key]]));
+  assert.equal((await call('/battle-settings', { pointRewards })).status, 200);
+  const changeSet = {
+    requestType: 'battle', battleType: 'multiplayer-op', requesterTeam: 'red', battleOpponent: 'blue', battleLocation: '1-1',
+    battleOpponents: ['blue', 'green', 'yellow'], battleOutcome: 'draw', battleTiedTeams: ['red', 'green'],
+  };
+  for (const battleTiedTeams of [[], ['green'], ['red', 'red'], ['red', 'purple']]) {
+    assert.equal((await call('/map-requests', { changeSet: { ...changeSet, battleTiedTeams } })).status, 400);
+  }
+  const { request } = await (await call('/map-requests', { changeSet })).json();
+  assert.equal((await (await call('/map')).json()).teamStats?.red?.campaignPoints ?? 0, 0);
+  api = createExpeditionApi(seed, db, disk);
+  for (const opponent of opponents.slice(0, -1)) {
+    assert.equal((await expeditionCall(api, opponent, '/map-requests/confirm', 'POST', { requestId: request.id })).status, 200);
+  }
+  const final = await expeditionCall(api, opponents.at(-1), '/map-requests/confirm', 'POST', { requestId: request.id });
+  assert.equal(final.status, 200);
+  const { request: approved, map } = await final.json();
+  assert.equal(approved.status, 'accepted');
+  assert.equal(approved.awardedPoints.length, 6);
+  assert.deepEqual(map.teamStats, {
+    red: { campaignPoints: 6, supplyPoints: 1 }, blue: { campaignPoints: 0, supplyPoints: 3 },
+    green: { campaignPoints: 6, supplyPoints: 1 }, yellow: { campaignPoints: 0, supplyPoints: 3 },
+  });
+  assert.equal((await call('/map-requests/accept', { requestId: request.id })).status, 404);
+});
+
 test('Expedition Battles can be paused without losing reports or changing other Map requests', async () => {
   const db = createAccountStore();
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
+  const blue = expeditionTraveler(db, 'blue');
   const browserStorage = storage();
   const seed = { tiles: [{ id: '0-0', marker: 'red' }] };
   const changeSet = {
@@ -394,7 +850,7 @@ test('Expedition Battles can be paused without losing reports or changing other 
   const { readSettings } = globalThis.ExpeditionPointRewards;
   assert.equal((await call('/point-rewards', 'POST', { pointRewards: readSettings({ standardWinCampaign: 5 }) })).status, 200);
   const { request: approved } = await (await call('/map-requests', 'POST', { changeSet })).json();
-  assert.equal((await call('/map-requests/accept', 'POST', { requestId: approved.id })).status, 200);
+  assert.equal((await expeditionCall(api, blue, '/map-requests/confirm', 'POST', { requestId: approved.id })).status, 200);
   const { request: pending } = await (await call('/map-requests', 'POST', { changeSet })).json();
 
   api = createExpeditionApi(seed, db, browserStorage, { battlesEnabled: false });
@@ -402,7 +858,7 @@ test('Expedition Battles can be paused without losing reports or changing other 
   assert.equal((await call('/battle-settings', 'POST', {})).status, 503);
   assert.equal((await call('/map-requests', 'POST', { changeSet })).status, 503);
   assert.equal((await call('/map-requests/update', 'POST', { requestId: pending.id, changeSet })).status, 503);
-  for (const action of ['accept', 'deny', 'cancel-own']) {
+  for (const action of ['accept', 'deny', 'cancel-own', 'confirm']) {
     assert.equal((await call(`/map-requests/${action}`, 'POST', { requestId: pending.id })).status, 503);
   }
   const { requests: history } = await (await call('/map-requests/history')).json();
@@ -414,8 +870,9 @@ test('Expedition Battles can be paused without losing reports or changing other 
   assert.equal((await call('/point-rewards', 'POST', { pointRewards: readSettings({ standardWinCampaign: 9, baseTarget: 4 }) })).status, 200);
 
   api = createExpeditionApi(seed, db, browserStorage, enableBattles);
-  const { battles } = await (await call('/battles')).json();
-  assert.deepEqual(battles.map(battle => [battle.id, battle.status]), [[approved.id, 'accepted'], [pending.id, 'pending']]);
+  const { battles, pendingBattles } = await (await call('/battles')).json();
+  assert.deepEqual(battles.map(battle => battle.id), [approved.id]);
+  assert.deepEqual(pendingBattles.map(battle => battle.id), [pending.id]);
   const map = await (await call('/map')).json();
   assert.equal(map.pointRewards.standardWinCampaign, 5);
   assert.equal(map.pointRewards.baseTarget, 4);
@@ -470,7 +927,7 @@ test('Expedition purchases spend shared credits, enforce stock and per-user limi
   db.assignExpedition(alice.id, 'traveler', 'red');
   db.assignExpedition(bob.id, 'traveler', 'red');
   db.assignExpedition(carol.id, 'traveler', 'blue');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const disk = storage();
   let failWrite = false;
   const browserStorage = {
@@ -495,7 +952,7 @@ test('Expedition purchases spend shared credits, enforce stock and per-user limi
   assert.equal((await buy(carol)).status, 409);
   assert.equal((await buy(alice, 0)).status, 400);
   assert.equal((await buy(alice, 2)).status, 409);
-  assert.equal((await call(alice, '/teams/red/items', 'POST', { name: 'Radio' })).status, 201);
+  assert.equal((await call(admin, '/teams/red/items', 'POST', { name: 'Radio' })).status, 201);
   failWrite = true;
   assert.equal((await buy(alice)).status, 500);
   failWrite = false;
@@ -536,7 +993,7 @@ test('Expedition purchases spend shared credits, enforce stock and per-user limi
   assert.ok((await roster('red')).items.some(entry => entry.name === 'Medkit' && entry.quantity === 2));
 });
 
-test('Expedition travelers can add units and items only to their assigned roster', async () => {
+test('Expedition travelers can add units to their assigned roster and general equipment requires an admin', async () => {
   const db = createAccountStore();
   const alice = db.save(account('user'));
   const bob = db.save(account('user', 'Bob'));
@@ -544,7 +1001,7 @@ test('Expedition travelers can add units and items only to their assigned roster
   db.assignExpedition(bob.id, 'viewer', 'red');
   const traveler = account('user');
   const viewer = account('user', 'Bob');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const browserStorage = storage();
   const seed = { tiles: [], teamStats: { red: { supplyPoints: 3, campaignPoints: 2 } } };
   const api = createExpeditionApi(seed, db, browserStorage);
@@ -556,9 +1013,10 @@ test('Expedition travelers can add units and items only to their assigned roster
 
   assert.equal((await add(traveler, 'blue', 'units', 'Scouts')).status, 403);
   assert.equal((await add(viewer, 'red', 'units', 'Scouts')).status, 403);
-  assert.equal((await add(traveler, 'red', 'items', '   ')).status, 400);
+  assert.equal((await add(admin, 'red', 'items', '   ')).status, 400);
   assert.equal((await add(traveler, 'red', 'units', '  Scouts  ')).status, 201);
-  assert.equal((await add(traveler, 'red', 'items', 'Survey kit')).status, 201);
+  assert.equal((await add(traveler, 'red', 'items', 'Survey kit')).status, 403);
+  assert.equal((await add(admin, 'red', 'items', 'Survey kit')).status, 201);
   assert.equal((await add(admin, 'blue', 'units', 'Veterans')).status, 201);
 
   const reloaded = createExpeditionApi(seed, db, browserStorage);
@@ -571,6 +1029,7 @@ test('Expedition travelers can add units and items only to their assigned roster
   assert.deepEqual(ownTeam.units[0].stats, stats);
   assert.deepEqual(ownTeam.items.map(entry => entry.name), ['Survey kit']);
   assert.equal(ownTeam.items[0].stats, undefined);
+  assert.equal(ownTeam.canAddEquipment, false);
   assert.deepEqual(ownTeam.points, { ...seed.teamStats.red, credits: 0 });
   assert.deepEqual(teams.filter(team => team.canAddEntries).map(team => team.name), ['red']);
   assert.ok(teams.every(team => !team.canEditPoints));
@@ -582,7 +1041,49 @@ test('Expedition travelers can add units and items only to their assigned roster
   assert.deepEqual(unassigned.teams, viewerTeams);
   const adminTeams = (await (await expeditionCall(reloaded, admin, '/teams')).json()).teams;
   assert.equal(adminTeams.length, 7);
+  assert.ok(adminTeams.every(team => team.canAddEquipment));
   assert.equal(adminTeams.find(team => team.name === 'blue').units[0].name, 'Veterans');
+});
+
+test('Expedition rosters have four editable faction equipment slots separate from general equipment', async () => {
+  const db = createAccountStore();
+  const red = expeditionTraveler(db, 'red');
+  const admin = expeditionAdmin(db);
+  const viewer = db.save(account('user', 'Red Viewer'));
+  db.assignExpedition(viewer.id, 'viewer', 'red');
+  const disk = storage();
+  const seed = { tiles: [] };
+  const legacy = { units: [], items: [{ id: 'radio', name: 'Radio' }] };
+  disk.setItem('expedition-preview-roster-red', JSON.stringify(legacy));
+  let api = createExpeditionApi(seed, db, disk);
+  const roster = async name => (await (await expeditionCall(api, red, '/teams')).json()).teams.find(team => team.name === name);
+  const save = (user, team, slot, equipment, expectedEquipment = null) =>
+    expeditionCall(api, user, `/teams/${team}/faction-equipment`, 'POST', { slot, equipment, expectedEquipment });
+  const equipment = { name: '  Scout Optics  ', description: '  Improves visibility.\nWorks in darkness.  ', action: '  Scan.  ' };
+  assert.deepEqual((await roster('red')).factionEquipment, [null, null, null, null]);
+  assert.equal((await save(red, 'blue', 1, equipment)).status, 403);
+  assert.equal((await save(viewer, 'red', 1, equipment)).status, 403);
+  assert.equal((await save(admin, 'blue', 1, equipment)).status, 200);
+  assert.equal((await save(red, 'red', 5, equipment)).status, 400);
+  assert.equal((await save(red, 'red', 1, { ...equipment, name: ' ' })).status, 400);
+  const saved = { name: 'Scout Optics', description: 'Improves visibility.\nWorks in darkness.', action: 'Scan.' };
+  const first = await save(red, 'red', 1, { ...equipment, quantity: 1 });
+  assert.equal(first.status, 200);
+  assert.deepEqual((await first.json()).equipment, saved);
+  for (const slot of [2, 3, 4]) {
+    assert.equal((await save(red, 'red', slot, { name: `Equipment ${slot}`, description: '' })).status, 200);
+  }
+  api = createExpeditionApi(seed, db, disk);
+  assert.equal((await roster('red')).factionEquipment.filter(Boolean).length, 4);
+  assert.deepEqual((await roster('red')).items, legacy.items);
+  const conflict = await save(red, 'red', 1, null);
+  assert.equal(conflict.status, 409);
+  assert.deepEqual((await conflict.json()).equipment, saved);
+  assert.equal((await save(red, 'red', 1, null, saved)).status, 200);
+  const replacement = { name: 'Survey kit', description: '' };
+  assert.equal((await save(red, 'red', 1, replacement)).status, 200);
+  assert.deepEqual((await roster('red')).factionEquipment[0], replacement);
+  assert.deepEqual((await roster('blue')).factionEquipment, [saved, null, null, null]);
 });
 
 test('Expedition team names can be changed without changing team colors or rosters', async () => {
@@ -590,7 +1091,7 @@ test('Expedition team names can be changed without changing team colors or roste
   const traveler = db.save(account('user'));
   db.assignExpedition(traveler.id, 'traveler', 'red');
   const viewer = account('user', 'Viewer');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const browserStorage = storage();
   const seed = { tiles: [] };
   const api = createExpeditionApi(seed, db, browserStorage);
@@ -621,7 +1122,7 @@ test('Expedition lore respects roster permissions and persists independently for
   const traveler = db.save(account('user'));
   db.assignExpedition(traveler.id, 'traveler', 'red');
   const viewer = account('user', 'Viewer');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const browserStorage = storage();
   const seed = { tiles: [] };
   const roster = { displayName: 'Night Scouts', units: [{ id: 'unit', name: 'Scout' }], items: [{ id: 'item', name: 'Radio' }] };
@@ -655,11 +1156,12 @@ test('Expedition lore respects roster permissions and persists independently for
 });
 
 test('Expedition units require four valid stats and preserve older roster entries', async () => {
-  const admin = account('admin');
+  const db = createAccountStore();
+  const admin = expeditionAdmin(db);
   const browserStorage = storage();
   const legacy = { id: 'older-unit', name: 'Veteran' };
   browserStorage.setItem('expedition-preview-roster-red', JSON.stringify({ units: [legacy], items: [] }));
-  const api = createExpeditionApi({ tiles: [] }, createAccountStore(), browserStorage);
+  const api = createExpeditionApi({ tiles: [] }, db, browserStorage);
   const stats = { apl: 2, move: 0, save: 3, wounds: 12 };
   const add = stats => expeditionCall(api, admin, '/teams/red/units', 'POST', { name: 'Guardian', stats });
   for (const invalid of [undefined, { ...stats, apl: 1.5 }, { ...stats, move: -1 }, { ...stats, save: '3' }, { ...stats, wounds: 0 }]) {
@@ -677,7 +1179,7 @@ test('Only assigned Expedition Travelers can upload unit images', async () => {
   const traveler = db.save(account('user'));
   db.assignExpedition(traveler.id, 'traveler', 'red');
   const viewer = account('user', 'Viewer');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const browserStorage = storage();
   const unit = { id: 'scout', name: 'Scout', weapons: [{ id: 'blade', name: 'Blade' }] };
   browserStorage.setItem('expedition-preview-roster-red', JSON.stringify({ units: [unit], items: [] }));
@@ -710,7 +1212,7 @@ test('Expedition units can store multiple ranged and melee weapons', async () =>
   const db = createAccountStore();
   const player = db.save(account('user'));
   db.assignExpedition(player.id, 'traveler', 'red');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const viewer = account('user', 'Viewer');
   const browserStorage = storage();
   const seed = { tiles: [] };
@@ -798,7 +1300,7 @@ test('Expedition roster editors update each unit part without replacing its sibl
   const player = db.save(account('user'));
   db.assignExpedition(player.id, 'traveler', 'red');
   const viewer = account('user', 'Viewer');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const browserStorage = storage();
   const weapon = { id: 'blade', type: 'melee', name: 'Blade', atk: 3, hit: 4, dmg: '2/3', wr: '' };
   const ability = { id: 'scout-rule', name: 'Explorer', description: 'Survey this tile.' };
@@ -843,7 +1345,7 @@ test('Expedition travelers can remove abilities and actions only from their own 
   const db = createAccountStore();
   const player = db.save(account('user'));
   db.assignExpedition(player.id, 'traveler', 'red');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const viewer = account('user', 'Viewer');
   const browserStorage = storage();
   const unit = {
@@ -923,7 +1425,8 @@ test('Expedition Team Management shows structures and occupied tiles from the cu
       { id: '3-4', structure: 'base', structureColor: 'blue' },
     ],
   };
-  const api = createExpeditionApi(seed, createAccountStore());
+  const db = createAccountStore();
+  const api = createExpeditionApi(seed, db);
   const list = async () => (await (await expeditionCall(api, account('user'), '/teams')).json()).teams;
   const teams = await list();
   assert.deepEqual(teams.find(team => team.name === 'red').locations, {
@@ -935,7 +1438,7 @@ test('Expedition Team Management shows structures and occupied tiles from the cu
   assert.deepEqual(teams.find(team => team.name === 'green').locations, { bases: [], camps: [], positions: [] });
 
   const nextMap = { tiles: [{ id: '4-5', marker: 'red' }] };
-  assert.equal((await expeditionCall(api, account('admin'), '/map', 'POST', { map: nextMap })).status, 200);
+  assert.equal((await expeditionCall(api, expeditionAdmin(db), '/map', 'POST', { map: nextMap })).status, 200);
   assert.deepEqual((await list()).find(team => team.name === 'red').locations, {
     bases: [], camps: [], positions: ['4-5'],
   });
@@ -945,7 +1448,7 @@ test('Expedition Team Management edits the Map balances and rejects stale edits'
   const db = createAccountStore();
   const player = db.save(account('user'));
   db.assignExpedition(player.id, 'traveler', 'red');
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const initial = { supplyPoints: 3, campaignPoints: 2 };
   const changed = { supplyPoints: 5, campaignPoints: 8, credits: 12 };
   const api = createExpeditionApi({ tiles: [], teamStats: { red: initial, blue: initial } }, db);
@@ -965,7 +1468,7 @@ test('Expedition Team Management edits the Map balances and rejects stale edits'
 
 test('Expedition Credits default to zero and survive Map saves, awards, and reloads', async () => {
   const db = createAccountStore();
-  const admin = account('admin');
+  const admin = expeditionAdmin(db);
   const viewer = account('user');
   const browserStorage = storage();
   const base = { supplyPoints: 3, campaignPoints: 2 };
@@ -992,9 +1495,11 @@ test('Expedition Credits default to zero and survive Map saves, awards, and relo
   assert.equal((await call(admin, '/team-stats', 'POST', { teamStats: stats })).status, 200);
   assert.equal((await call(admin, '/map', 'POST', { map: { ...seed, teamStats: { red: { ...base, credits: 0 } } } })).status, 200);
   const { request } = await (await call(admin, '/map-requests', 'POST', {
-    changeSet: { requestType: 'battle', battleType: 'standard', battleResult: 'won', requesterTeam: 'red', battleOpponent: 'blue', battleLocation: '0-0' },
+    changeSet: { requestType: 'battle', battleType: 'standard', battleResult: 'won', requesterTeam: 'red', battleOpponent: 'outside-player', battleLocation: '0-0' },
   })).json();
-  assert.equal((await call(admin, '/map-requests/accept', 'POST', { requestId: request.id })).status, 200);
+  assert.deepEqual(request.review.requiredTeams, []);
+  assert.equal(request.status, 'accepted');
+  assert.equal((await call(admin, '/map-requests/accept', 'POST', { requestId: request.id })).status, 404);
   api = createExpeditionApi(seed, db, browserStorage);
   assert.deepEqual(await teamBalance(), { supplyPoints: 3, campaignPoints: 4, credits: 7 });
 });
@@ -1016,8 +1521,9 @@ test('Expedition traveler requests support own lists, updates, cancellation, and
   assert.equal((await expeditionCall(api, alice, '/map-requests/cancel-own', 'POST', { requestId: request.id })).status, 200);
   assert.equal((await (await expeditionCall(api, alice, '/map-requests/mine')).json()).requests.length, 0);
   const second = await (await expeditionCall(api, alice, '/map-requests', 'POST', { changeSet })).json();
-  assert.equal((await expeditionCall(api, account('admin'), '/map-requests/deny', 'POST', { requestId: second.request.id })).status, 200);
-  assert.equal((await (await expeditionCall(api, account('admin'), '/map-requests/list')).json()).requests.length, 0);
+  const admin = expeditionAdmin(db);
+  assert.equal((await expeditionCall(api, admin, '/map-requests/deny', 'POST', { requestId: second.request.id })).status, 200);
+  assert.equal((await (await expeditionCall(api, admin, '/map-requests/list')).json()).requests.length, 0);
   assert.equal((await (await expeditionCall(api, alice, '/map-requests/history')).json()).requests.length, 2);
-  assert.equal((await expeditionCall(api, account('admin'), '/map-requests/accept', 'POST', {})).status, 501);
+  assert.equal((await expeditionCall(api, admin, '/map-requests/accept', 'POST', {})).status, 501);
 });

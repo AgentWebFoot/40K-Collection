@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson, getAuthEventName } from '../../utils/auth';
+import EquipmentRules from './EquipmentRules.jsx';
+import { factionEquipmentLimits } from './faction-equipment.mjs';
 
 const styles = {
   page: { minHeight: '100%', padding: 'clamp(16px, 4vw, 40px)', background: '#1e1e1e', color: '#fff', fontFamily: 'system-ui, sans-serif' },
@@ -19,7 +21,6 @@ const styles = {
   button: { color: '#fff', background: '#353535', border: '1px solid #666', borderRadius: '6px', font: 'inherit', padding: '8px 12px', justifySelf: 'start' },
   note: { color: '#ddd', margin: 0 },
   error: { color: '#ffb5a7', margin: 0 },
-  description: { color: '#ddd', margin: 0, whiteSpace: 'pre-wrap' },
 };
 
 async function shopRequest(path, method, body, signal) {
@@ -42,6 +43,7 @@ function ShopListingForm({ busy, onCreate }) {
     onCreate({
       name: fields.get('name').trim(),
       description: fields.get('description').trim(),
+      action: fields.get('action').trim(),
       cost: form.elements.namedItem('cost').valueAsNumber,
     }, () => form.reset());
   }
@@ -58,8 +60,11 @@ function ShopListingForm({ busy, onCreate }) {
             <input name="cost" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" required style={styles.field} />
           </label>
         </div>
-        <label style={styles.label}>Description
+        <label style={styles.label}>Ability
           <textarea name="description" rows={3} maxLength={2000} required style={styles.field} />
+        </label>
+        <label style={styles.label}>Action (optional)
+          <textarea name="action" rows={2} maxLength={factionEquipmentLimits.description} style={styles.field} />
         </label>
         <button type="submit" style={styles.button}>Add to Backrooms</button>
       </fieldset>
@@ -113,7 +118,7 @@ function ShopListing({ item, children }) {
         <h3 style={styles.heading}>{item.name}</h3>
         <strong>{item.cost.toLocaleString()} {item.cost === 1 ? 'credit' : 'credits'}</strong>
       </div>
-      <p style={styles.description}>{item.description}</p>
+      <EquipmentRules equipment={item} showEmptyAbility />
       {children}
     </article>
   );
@@ -197,7 +202,7 @@ function ShopPage() {
   const storefront = catalog?.items.filter(item => item.visible) ?? [];
   const query = search.trim().toLowerCase();
   const backrooms = catalog?.items.filter(item => (
-    item.name.toLowerCase().includes(query) || item.description.toLowerCase().includes(query)
+    [item.name, item.description, item.action].some(value => value?.toLowerCase().includes(query))
   )) ?? [];
 
   function removeFromStorefront(item) {

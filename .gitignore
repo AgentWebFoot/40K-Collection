@@ -4,6 +4,7 @@ node_modules/
 # Local campaign data (including uppercase .JSON files).
 /Expedition/**/*.[jJ][sS][oO][nN]
 /PyrrhicWar/**/*.[jJ][sS][oO][nN]
+/data/expedition/
 
 # Local-only Hybrid Campaign authority snapshot and browser-QA output.
 /HybridCampaign/.campaign-preview-state.json

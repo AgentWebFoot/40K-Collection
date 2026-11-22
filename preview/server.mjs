@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { context } from 'esbuild';
+import { expeditionDataDirectory, initializeExpeditionData, openExpeditionStorage } from './expedition-storage.mjs';
+import { createPreviewService } from './service.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const types = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
 const port = Number(process.env.PORT || 5173);
-const atlasModule = await import('../HybridCampaign/server/atlas-preview-host.ts');
-const { createAtlasPreviewHost } = atlasModule.default ?? atlasModule;
-const hybridCampaign = await createAtlasPreviewHost(root);
+initializeExpeditionData();
 const appBuild = await context({
   entryPoints: [path.join(root, 'preview/app.jsx')], bundle: true, write: false,
   format: 'esm', jsx: 'automatic',
@@ -20,6 +20,11 @@ const appBuild = await context({
   } }],
 });
 await appBuild.rebuild();
+if (process.argv.includes('--build')) {
+  await appBuild.dispose();
+  console.log(`Preview build verified. Expedition saves use ${expeditionDataDirectory}.`);
+}
+
 const bridge = `<script>
   const mockFetch = parent.createPreviewFetch();
   const originalFetch = window.fetch.bind(window);
@@ -29,7 +34,26 @@ const bridge = `<script>
     return originalFetch(input, options);
   };
 </script>`;
-http.createServer(async (req, res) => {
+if (!process.argv.includes('--build')) {
+  const atlasModule = await import('../HybridCampaign/server/atlas-preview-host.ts');
+  const { createAtlasPreviewHost } = atlasModule.default ?? atlasModule;
+  const hybridCampaign = await createAtlasPreviewHost(root);
+  serve(createPreviewService(openExpeditionStorage()), hybridCampaign);
+}
+
+async function readRequest(req) {
+  const chunks = [];
+  let length = 0;
+  for await (const chunk of req) {
+    length += chunk.length;
+    if (length > 24 * 1024 * 1024) throw new Error('Preview request is too large.');
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+function serve(previewRequest, hybridCampaign) {
+  http.createServer(async (req, res) => {
   try {
     let name = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (name.startsWith('/hybrid-campaign/api/')) {
@@ -51,6 +75,22 @@ http.createServer(async (req, res) => {
       }
       return;
     }
+    if (name === '/preview/api' && req.method === 'POST') {
+      const host = req.headers.host;
+      const allowedHosts = [`127.0.0.1:${port}`, `localhost:${port}`];
+      if (!allowedHosts.includes(host) || (req.headers.origin && req.headers.origin !== `http://${host}`)
+        || !req.headers['content-type']?.startsWith('application/json')) {
+        res.writeHead(403).end();
+        return;
+      }
+      try {
+        const { status, ...result } = await previewRequest(await readRequest(req));
+        res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(result));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ payload: { message: error.message } }));
+      }
+      return;
+    }
     if (name === '/preview/app.bundle.js') {
       try {
         const bundle = await appBuild.rebuild();
@@ -68,8 +108,10 @@ http.createServer(async (req, res) => {
       ? path.resolve(root, 'HybridCampaign', 'public', name.slice(assetPrefix.length))
       : path.resolve(root, '.' + name);
     const relative = path.relative(root, target);
-    const isHybridAsset = name.startsWith(assetPrefix) && !relative.startsWith('..') && !path.isAbsolute(relative) && relative.startsWith(`HybridCampaign${path.sep}public${path.sep}`);
+    const isHybridAsset = name.startsWith(assetPrefix) && relative.startsWith(`HybridCampaign${path.sep}public${path.sep}`);
+    const fromData = path.relative(expeditionDataDirectory, target);
     if (relative.startsWith('..') || path.isAbsolute(relative) ||
+        (!fromData.startsWith('..') && !path.isAbsolute(fromData)) ||
         !(isHybridAsset || /^(preview|PyrrhicWar|Expedition)[\\/]/.test(relative)) || !types[path.extname(target).toLowerCase()]) {
       res.writeHead(404).end(); return;
     }
@@ -80,4 +122,5 @@ http.createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end('File not found');
   }
-}).listen(port, '127.0.0.1', () => console.log(`Collection preview: http://127.0.0.1:${port}`));
+  }).listen(port, '127.0.0.1', () => console.log(`Collection preview: http://127.0.0.1:${port}`));
+}

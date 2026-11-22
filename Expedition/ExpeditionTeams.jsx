@@ -1,11 +1,13 @@
 import { useEffect, useId, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchJson, getAuthEventName } from '../../utils/auth';
-import { unitStatFields } from './unit-stats.mjs';
-import { weaponLimits, weaponTypes } from './weapon-profiles.mjs';
-import { getActionEffects, unitRuleLimits } from './unit-rules.mjs';
-import { prepareUnitImage, unitImageTypes } from './unit-images.mjs';
-import { orderedUnitEntries, unitMoveTarget } from './unit-order.mjs';
+import {
+  getActionEffects, orderedUnitEntries, prepareUnitImage, unitImageTypes, unitMoveTarget,
+  unitRuleLimits, unitStatFields, weaponLimits, weaponTypes,
+} from './unit-rules.mjs';
+import { factionEquipmentLimits, factionEquipmentSlots } from './faction-equipment.mjs';
+import { universalEquipment as defaultUniversalEquipment } from './universal-equipment.mjs';
+import EquipmentRules from './EquipmentRules.jsx';
 import { getBountyProgress, loadBounties } from './ExpeditionBounties.jsx';
 
 const profileHeaderBackground = '#91421f';
@@ -713,8 +715,148 @@ function CollapsibleTeamSection({ id, title, linkTo, linkLabel, children }) {
   );
 }
 
-function TeamEquipment({ team, editing, onChange }) {
+function FactionEquipmentSlot({ team, slot, equipment, editing, onSave }) {
+  const saved = equipment ?? { name: '', description: '' };
+  const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const { name, description, action = '' } = draft ?? saved;
+  const changed = name !== saved.name || description !== saved.description || action !== (saved.action ?? '');
+
+  async function saveEquipment(event) {
+    event.preventDefault();
+    if (saving || !changed) return;
+    setSaving(true);
+    setFeedback(null);
+    const next = name.trim() || description.trim() || action.trim() ? { name, description, action } : null;
+    try {
+      const { response, payload } = await updateTeam(team, 'faction-equipment', {
+        slot, equipment: next, expectedEquipment: equipment,
+      });
+      if (response.status === 409) {
+        onSave(payload.equipment);
+        setFeedback({ error: true, conflict: true, message: payload.message });
+        return;
+      }
+      if (!response.ok) throw new Error(payload.message || 'Unable to save faction equipment.');
+      onSave(payload.equipment);
+      setDraft(null);
+      setFeedback({ message: payload.message });
+    } catch (error) {
+      setFeedback({ error: true, message: error.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <li style={{ ...styles.rosterEntry, ...styles.sectionBody }}>
+      <h4 style={styles.rulesHeading}>Slot {slot}</h4>
+      {editing ? (
+        <form onSubmit={saveEquipment} style={styles.loreForm}>
+          <label style={styles.label}>
+            Name
+            <input aria-label={`Faction equipment slot ${slot} name`} value={name} maxLength={factionEquipmentLimits.name}
+              onChange={event => setDraft({ name: event.target.value, description, action })} disabled={saving} style={styles.field} />
+          </label>
+          <label style={styles.label}>
+            Ability
+            <textarea aria-label={`Faction equipment slot ${slot} ability`} value={description} rows={3}
+              maxLength={factionEquipmentLimits.description} onChange={event => setDraft({ name, description: event.target.value, action })}
+              disabled={saving} style={{ ...styles.field, resize: 'vertical' }} />
+          </label>
+          <label style={styles.label}>
+            Action (optional)
+            <textarea aria-label={`Faction equipment slot ${slot} action`} value={action} rows={2}
+              maxLength={factionEquipmentLimits.description} onChange={event => setDraft({ name, description, action: event.target.value })}
+              disabled={saving} style={{ ...styles.field, resize: 'vertical' }} />
+          </label>
+          <div style={styles.balanceActions}>
+            <button type="submit" disabled={saving || !changed || (!name.trim() && Boolean(description.trim() || action.trim()))} style={styles.button}>Save slot</button>
+            {(name || description || action) && (
+              <button type="button" disabled={saving} onClick={() => setDraft({ name: '', description: '', action: '' })} style={styles.button}>Clear slot</button>
+            )}
+          </div>
+        </form>
+      ) : equipment ? (
+        <div>
+          <strong>{equipment.name}</strong>
+          <EquipmentRules equipment={equipment} showEmptyAbility />
+        </div>
+      ) : <p style={styles.note}>Empty slot</p>}
+      {feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.note}>{feedback.message}</p>}
+      {editing && feedback?.conflict && (
+        <div>
+          <strong>Currently saved</strong>
+          <p style={styles.ruleText}>{equipment?.name || 'Empty slot'}</p>
+          {equipment && <EquipmentRules equipment={equipment} />}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function UniversalEquipmentEntry({ item, editing, onSave }) {
+  const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const { description = '', action = '' } = draft ?? item;
+
+  async function save(event) {
+    event.preventDefault();
+    if (saving || !draft) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const { response, payload } = await fetchJson('/expedition/universal-equipment', {
+        method: 'PATCH', body: JSON.stringify({
+          id: item.id, description, action, expectedDescription: item.description, expectedAction: item.action ?? '',
+        }),
+      });
+      if (response.status === 409) {
+        onSave(payload.equipment);
+        setFeedback({ error: true, conflict: true, message: payload.message });
+        return;
+      }
+      if (!response.ok) throw new Error(payload.message || 'Unable to save universal equipment.');
+      onSave(payload.equipment);
+      setDraft(null);
+      setFeedback({ message: payload.message });
+    } catch (error) {
+      setFeedback({ error: true, message: error.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <details style={styles.rosterEntry}>
+      <summary style={{ cursor: 'pointer' }}>{item.name}</summary>
+      <div style={{ ...styles.sectionBody, paddingTop: '8px' }}>
+        {editing ? (
+          <form onSubmit={save} style={styles.loreForm}>
+            <label style={styles.label}>Ability
+              <textarea aria-label={`${item.name} ability`} style={styles.field} rows={3} maxLength={factionEquipmentLimits.description}
+                value={description} disabled={saving} onChange={event => setDraft({ description: event.target.value, action })} />
+            </label>
+            <label style={styles.label}>Action (optional)
+              <textarea aria-label={`${item.name} action`} style={styles.field} rows={2} maxLength={factionEquipmentLimits.description}
+                value={action} disabled={saving} onChange={event => setDraft({ description, action: event.target.value })} />
+            </label>
+            <button type="submit" disabled={saving || !draft} style={{ ...styles.button, justifySelf: 'start' }}>Save rules</button>
+          </form>
+        ) : <EquipmentRules equipment={item} showEmptyAbility />}
+        {feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.note}>{feedback.message}</p>}
+        {editing && feedback?.conflict && <EquipmentRules equipment={item} showEmptyAbility />}
+      </div>
+    </details>
+  );
+}
+
+function TeamEquipment({ team, universalEquipment, editing, onChange, onUniversalSave }) {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [action, setAction] = useState('');
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const items = team.items ?? [];
@@ -722,11 +864,11 @@ function TeamEquipment({ team, editing, onChange }) {
   async function addEquipment(event) {
     event.preventDefault();
     const equipmentName = name.trim();
-    if (saving || !editing || !equipmentName) return;
+    if (saving || !editing || !team.canAddEquipment || !equipmentName) return;
     setSaving(true);
     setFeedback(null);
     try {
-      const { response, payload } = await updateTeam(team.name, 'items', { name: equipmentName });
+      const { response, payload } = await updateTeam(team.name, 'items', { name: equipmentName, description, action });
       if (!response.ok) throw new Error(payload.message || 'Unable to add equipment.');
       const item = payload.entry;
       onChange(current => {
@@ -734,6 +876,8 @@ function TeamEquipment({ team, editing, onChange }) {
         return { items: entries.some(entry => entry.id === item.id) ? entries : [...entries, item] };
       });
       setName('');
+      setDescription('');
+      setAction('');
       setFeedback({ message: `${item.name} added.` });
     } catch (error) {
       setFeedback({ error: true, message: error.message });
@@ -745,24 +889,55 @@ function TeamEquipment({ team, editing, onChange }) {
   return (
     <CollapsibleTeamSection id="expedition-equipment" title="Equipment"
       linkTo="/projects/ExpeditionShop" linkLabel="Visit Storefront">
+      <section style={styles.sectionBody} aria-labelledby="expedition-universal-equipment-heading">
+        <h3 id="expedition-universal-equipment-heading" style={styles.heading}>Universal Equipment</h3>
+        <p style={styles.note}>Available to every team · Unlimited use</p>
+        <div style={styles.teamOverview}>
+          {universalEquipment.map(item => (
+            <UniversalEquipmentEntry key={item.id} item={item} editing={editing && team.canAddEquipment}
+              onSave={onUniversalSave} />
+          ))}
+        </div>
+      </section>
+      <section style={styles.sectionBody} aria-labelledby="expedition-faction-equipment-heading">
+        <h3 id="expedition-faction-equipment-heading" style={styles.heading}>Faction Equipment</h3>
+        <p style={styles.note}>Unlimited use</p>
+        <ol style={{ ...styles.rosterList, ...styles.teamOverview }} role="list">
+          {factionEquipmentSlots(team.factionEquipment).map((equipment, index) => (
+            <FactionEquipmentSlot key={index} team={team.name} slot={index + 1} equipment={equipment} editing={editing}
+              onSave={updated => onChange(current => ({
+                factionEquipment: factionEquipmentSlots(current.factionEquipment).map((entry, position) => position === index ? updated : entry),
+              }))} />
+          ))}
+        </ol>
+      </section>
+      <h3 style={styles.heading}>Purchased Equipment</h3>
       {items.length ? (
         <ul style={styles.rosterList} role="list">
           {items.map(item => (
             <li key={item.id} style={styles.rosterEntry}>
               <span>{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
-              {item.description && <p style={styles.ruleText}>{item.description}</p>}
+              <EquipmentRules equipment={item} showEmptyAbility />
             </li>
           ))}
         </ul>
-      ) : <p style={styles.note}>No team equipment added yet.</p>}
-      {editing && (
-        <form onSubmit={addEquipment} style={styles.form}>
-          <label style={{ ...styles.label, ...styles.unitNameField }}>
+      ) : <p style={styles.note}>No purchased equipment yet.</p>}
+      {editing && team.canAddEquipment && (
+        <form onSubmit={addEquipment} style={styles.loreForm}>
+          <label style={styles.label}>
             Equipment name
             <input value={name} onChange={event => setName(event.target.value)} maxLength={100}
               required disabled={saving} style={styles.field} />
           </label>
-          <button type="submit" disabled={saving || !name.trim()} style={styles.button}>Add equipment</button>
+          <label style={styles.label}>Ability
+            <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3}
+              maxLength={factionEquipmentLimits.description} disabled={saving} style={styles.field} />
+          </label>
+          <label style={styles.label}>Action (optional)
+            <textarea value={action} onChange={event => setAction(event.target.value)} rows={2}
+              maxLength={factionEquipmentLimits.description} disabled={saving} style={styles.field} />
+          </label>
+          <button type="submit" disabled={saving || !name.trim()} style={{ ...styles.button, justifySelf: 'start' }}>Add equipment</button>
         </form>
       )}
       {feedback && <p role={feedback.error ? 'alert' : 'status'} style={feedback.error ? styles.error : styles.note}>{feedback.message}</p>}
@@ -1000,6 +1175,7 @@ export default function ExpeditionTeams() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [teams, setTeams] = useState(null);
   const [assignedTeam, setAssignedTeam] = useState('');
+  const [universalEquipment, setUniversalEquipment] = useState(defaultUniversalEquipment);
   const [editingTeam, setEditingTeam] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [reload, setReload] = useState(0);
@@ -1023,6 +1199,7 @@ export default function ExpeditionTeams() {
         if (ignore) return;
         const ownTeam = payload.teams.find(entry => entry.name === payload.assignedTeam)?.name || '';
         setAssignedTeam(ownTeam);
+        setUniversalEquipment(payload.universalEquipment ?? defaultUniversalEquipment);
         setTeams(payload.teams);
       } catch (error) {
         if (!ignore) setLoadError(error.message);
@@ -1089,7 +1266,7 @@ export default function ExpeditionTeams() {
                 aria-controls="expedition-team-lore expedition-units expedition-equipment"
                 title={editing ? 'Done editing roster' : 'Edit roster'}
                 onClick={() => setEditingTeam(current => current === selectedTeam ? null : selectedTeam)}
-                style={{ ...styles.button, ...styles.pencil, ...(editing ? { background: 'var(--team-tint)', borderColor: 'var(--team-accent)' } : {}) }}
+                style={{ ...styles.button, ...styles.pencil, ...(editing ? { background: 'var(--team-tint)', border: '1px solid var(--team-accent)' } : {}) }}
               >
                 <span aria-hidden="true">✎</span>
               </button>
@@ -1114,7 +1291,8 @@ export default function ExpeditionTeams() {
               </div>
               <TeamLore team={team} editing={editing} onSave={lore => updateSelectedTeam(() => ({ lore }))} />
               <TeamUnits team={team} editing={editing} onChange={updateSelectedTeam} />
-              <TeamEquipment team={team} editing={editing} onChange={updateSelectedTeam} />
+              <TeamEquipment team={team} universalEquipment={universalEquipment} editing={editing} onChange={updateSelectedTeam}
+                onUniversalSave={updated => setUniversalEquipment(current => current.map(item => item.id === updated.id ? updated : item))} />
             </div>
             <ActiveBounties key={reload} />
           </>

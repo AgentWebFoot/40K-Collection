@@ -1,19 +1,22 @@
 import { roles, expeditionRole, expeditionRoles, expeditionTeams } from './accounts.mjs';
 import '../Expedition/point-rewards.js';
-import { battleParticipants, validateBattle } from '../Expedition/battle-rules.mjs';
-import { unitStatFields } from '../Expedition/unit-stats.mjs';
-import { validateWeaponProfile } from '../Expedition/weapon-profiles.mjs';
-import { validateUnitRule } from '../Expedition/unit-rules.mjs';
-import { validUnitImage } from '../Expedition/unit-images.mjs';
-import { orderedUnitEntries, unitMoveTarget } from '../Expedition/unit-order.mjs';
-import { battlesUnavailableMessage, expeditionBattlesEnabled } from '../Expedition/battle-availability.mjs';
+import {
+  battleEquipmentLimit, battleParticipants, battlePayoutAwards, battlesUnavailableMessage, battleSubmissionRound, battleTypes,
+  equipmentCount, expeditionBattlesEnabled, projectedBattlePayouts, validateBattle, validRewardOverrides,
+} from '../Expedition/battle-rules.mjs';
+import {
+  orderedUnitEntries, unitMoveTarget, unitStatFields, validUnitImage, validateUnitRule, validateWeaponProfile,
+} from '../Expedition/unit-rules.mjs';
+import { factionEquipmentLimits, factionEquipmentSlotCount, factionEquipmentSlots } from '../Expedition/faction-equipment.mjs';
+import { universalEquipment } from '../Expedition/universal-equipment.mjs';
 
-const { validateSettings, readSettings, battleFields, mapGroups, battleAwards } = globalThis.ExpeditionPointRewards;
+const { validateSettings, readSettings, battleFields, mapGroups } = globalThis.ExpeditionPointRewards;
 const teams = expeditionTeams.filter(Boolean);
 const isBattle = request => request?.changeSet?.requestType === 'battle';
 const battleStateKey = 'expedition-preview-battles';
 const roundStorageKey = 'expedition-preview-round';
 const shopStorageKey = 'expedition-preview-shop';
+const universalEquipmentStorageKey = 'expedition-preview-universal-equipment';
 const rosterCategories = ['units', 'items'];
 const unitEntryTypes = {
   weapons: { key: 'weapon', validate: validateWeaponProfile },
@@ -50,6 +53,16 @@ function validSupplyCosts(costs) {
 const validCredits = credits => Number.isSafeInteger(credits) && credits >= 0;
 const validRound = round => Number.isSafeInteger(round) && round >= 1;
 const positiveQuantity = value => Number.isSafeInteger(value) && value > 0;
+const purchaseRemaining = purchase => purchase.quantity - (purchase.usedQuantity ?? 0);
+function equipmentAction(value) {
+  if (value === undefined) return '';
+  if (typeof value !== 'string') return null;
+  const action = value.trim();
+  return action.length <= factionEquipmentLimits.description ? action : null;
+}
+const equipmentRules = ({ description, action }) => ({
+  ...(description ? { description } : {}), ...(action ? { action } : {}),
+});
 const validStockLimit = value => value === null || positiveQuantity(value);
 
 function validTeamPoints(points) {
@@ -94,10 +107,11 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
   const readRoster = team => {
     const stored = storage?.getItem(rosterKey(team));
     if (!stored) return rosters.get(team) ?? { units: [], items: [] };
-    const { units, items, displayName, lore } = JSON.parse(stored);
+    const { units, items, displayName, lore, factionEquipment } = JSON.parse(stored);
     if (!Array.isArray(units) || !Array.isArray(items)) throw new Error('Invalid stored roster.');
     return {
       units, items,
+      ...(Array.isArray(factionEquipment) ? { factionEquipment } : {}),
       ...(typeof displayName === 'string' && displayName.trim() ? { displayName } : {}),
       ...(typeof lore === 'string' ? { lore } : {}),
     };
@@ -105,6 +119,15 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
   const writeRoster = (team, roster) => {
     if (storage) storage.setItem(rosterKey(team), JSON.stringify(roster));
     else rosters.set(team, roster);
+  };
+  let universalProfiles = {};
+  const readUniversalProfiles = () => {
+    const stored = storage?.getItem(universalEquipmentStorageKey);
+    return stored ? JSON.parse(stored) : universalProfiles;
+  };
+  const universalCatalog = () => {
+    const profiles = readUniversalProfiles();
+    return universalEquipment.map(item => ({ ...item, ...profiles[item.id] }));
   };
   let shopState;
   const readShop = () => {
@@ -155,9 +178,56 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     return result;
   };
   let requests = [];
-  function commitCampaignState(nextRequests, teamStats = map.teamStats, shop = shopState) {
+  let lorePosts = [];
+  function purchaseUses(reports) {
+    const uses = new Map();
+    for (const report of reports) {
+      for (const { items } of report.equipmentUsed ?? []) {
+        for (const item of items) {
+          if (item.kind === 'purchased') uses.set(item.id, (uses.get(item.id) ?? 0) + item.quantity);
+        }
+      }
+    }
+    return uses;
+  }
+  function battleEquipmentOptions(team, replacingReport) {
+    const reserved = purchaseUses(requests.filter(report => report.status === 'pending' && report.id !== replacingReport));
+    const faction = factionEquipmentSlots(readRoster(team).factionEquipment).flatMap((entry, index) =>
+      entry ? [{ id: `faction:${index + 1}`, name: entry.name, kind: 'faction', available: 1, ...equipmentRules(entry) }] : []);
+    const purchased = readShop().purchases.filter(item => item.team === team)
+      .map(item => ({
+        id: item.id, name: item.name, kind: 'purchased',
+        available: purchaseRemaining(item) - (reserved.get(item.id) ?? 0),
+        ...equipmentRules(item),
+      })).filter(item => item.available > 0);
+    const universal = universalCatalog().map(item => ({ ...item, id: `universal:${item.id}`, kind: 'universal', available: 1 }));
+    return [...faction, ...purchased, ...universal];
+  }
+  function readBattleEquipment(choices, team, replacingReport) {
+    if (!Array.isArray(choices) || choices.some(choice => typeof choice?.id !== 'string' || !positiveQuantity(choice.quantity))
+      || equipmentCount(choices) > battleEquipmentLimit || new Set(choices.map(choice => choice.id)).size !== choices.length) {
+      return { status: 400, message: `Choose up to ${battleEquipmentLimit} pieces of equipment.` };
+    }
+    if (!choices.length) return { items: [] };
+    let options;
     try {
-      storage?.setItem(battleStateKey, JSON.stringify({ battles: nextRequests.filter(isBattle), teamStats, shop }));
+      options = new Map(battleEquipmentOptions(team, replacingReport).map(item => [item.id, item]));
+    } catch {
+      return { status: 500, message: 'Unable to load available battle equipment.' };
+    }
+    const items = [];
+    for (const { id, quantity } of choices) {
+      const option = options.get(id);
+      if (!option || quantity > option.available) return { status: 409, message: 'Some selected equipment is unavailable. Refresh the equipment list and choose again.' };
+      items.push({ id, quantity, name: option.name, kind: option.kind });
+    }
+    return { items };
+  }
+  function commitCampaignState(nextRequests, teamStats = map.teamStats, shop = shopState, nextMap) {
+    try {
+      const state = { battles: nextRequests.filter(isBattle), teamStats, shop };
+      if (storage?.writeCampaignState) storage.writeCampaignState({ ...state, map: nextMap });
+      else storage?.setItem(battleStateKey, JSON.stringify(state));
       requests = nextRequests;
       map.teamStats = teamStats;
       shopState = shop;
@@ -173,6 +243,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     const role = expeditionRole({ ...saved, role: account.role });
     const team = saved?.expeditionTeam || '';
     const admin = ['admin', 'owner'].includes(role);
+    const canManageRoles = admin || account.role === 'manager';
     const user = { id: saved?.id || `preview:${account.username.trim().toLowerCase()}`, username: account.username, role: account.role };
     const route = new URL(input).pathname.replace(/^\/expedition/, '');
     const method = (options.method || 'GET').toUpperCase();
@@ -181,15 +252,77 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     catch { return reply({ message: 'Invalid JSON request.' }, 400); }
     const forbidden = () => reply({ message: 'This account cannot perform that Expedition action.' }, 403);
     const battlesUnavailable = () => reply({ message: battlesUnavailableMessage }, 503);
-    if (!battlesEnabled && ['/battles', '/battle-settings'].includes(route)) return battlesUnavailable();
+    if (!battlesEnabled && ['/battles', '/battle-settings', '/battle-equipment'].includes(route)) return battlesUnavailable();
     const own = request => request.requesterUserId === user.id;
     const canSeeBattle = request => admin || own(request) || (team && battleParticipants(request.changeSet).includes(team));
+    const canLog = admin || (role === 'traveler' && Boolean(team));
+    const battleReview = request => {
+      const { changeSet, status } = request;
+      const sameTeamJointOp = changeSet.battleType === 'joint-op' && changeSet.battleOpponent === changeSet.requesterTeam;
+      const requiredTeams = battleParticipants(changeSet).filter(participant =>
+        teams.includes(participant) && (participant !== changeSet.requesterTeam || sameTeamJointOp));
+      const confirmedTeams = (request.confirmedTeams ?? []).filter(participant => requiredTeams.includes(participant));
+      return {
+        requiredTeams,
+        confirmedTeams,
+        canConfirm: status === 'pending' && canLog && !own(request) && requiredTeams.includes(team) && !confirmedTeams.includes(team),
+        canApprove: status === 'pending' && admin,
+        canEdit: status === 'accepted' ? admin : status === 'pending' && (admin || (canLog && own(request))),
+        requiresAdminApproval: Object.keys(request.rewardOverrides ?? {}).length > 0,
+      };
+    };
+    const battleReport = ({ requesterEmail, ...request }) => ({
+      ...request, own: own(request), revision: request.revision ?? 1, review: battleReview(request),
+      ...(request.status === 'pending' ? {
+        projectedRewards: projectedBattlePayouts(request.changeSet, readMap().pointRewards, teams, map.teamStats, request.rewardOverrides),
+      } : {}),
+    });
+    const isStaleReview = request => body?.expectedRevision != null && body.expectedRevision !== (request.revision ?? 1);
+    const staleReview = () => reply({ message: 'The battle report was edited. Refresh the report before continuing.' }, 409);
     const saveError = () => reply({ message: 'Unable to save Expedition battles and point balances in browser storage.' }, 500);
+    const acceptRequest = (request, awards, approvalMethod, shop = shopState) => {
+      const stats = structuredClone(map.teamStats ?? {});
+      const awardedPoints = [];
+      for (const [recipient, field, amount] of awards) {
+        stats[recipient] ??= { supplyPoints: 0, campaignPoints: 0 };
+        const limit = field === 'supplyPoints' ? 10 : Number.MAX_SAFE_INTEGER;
+        const previous = stats[recipient][field] ?? 0;
+        stats[recipient][field] = Math.min(limit, Math.max(0, previous + amount));
+        const gained = stats[recipient][field] - previous;
+        if (gained > 0) awardedPoints.push({ team: recipient, field, amount: gained });
+      }
+      const battle = isBattle(request);
+      const updated = {
+        ...request, status: 'accepted', reviewedAt: new Date().toISOString(), reviewedByUsername: user.username,
+        ...(battle ? { awardedPoints, approvalMethod } : {}),
+      };
+      const next = requests.some(item => item.id === updated.id)
+        ? requests.map(item => item.id === updated.id ? updated : item)
+        : [...requests, updated];
+      if (!commitCampaignState(next, stats, shop)) return saveError();
+      return reply({ request: battle ? battleReport(updated) : updated, map: readMap(), message: 'Expedition request accepted.' });
+    };
+    const acceptBattle = (request, approvalMethod) => {
+      const uses = purchaseUses([request]);
+      let shop = shopState;
+      if (uses.size) {
+        const current = readShop();
+        const purchases = new Map(current.purchases.map(item => [item.id, item]));
+        for (const [id, quantity] of uses) {
+          const item = purchases.get(id);
+          if (!item || quantity > purchaseRemaining(item)) return reply({ message: 'Purchased equipment used in this report is unavailable.' }, 409);
+        }
+        shop = { ...current, purchases: current.purchases.map(item => uses.has(item.id)
+          ? { ...item, usedQuantity: (item.usedQuantity ?? 0) + uses.get(item.id) } : item) };
+      }
+      return acceptRequest(request, battlePayoutAwards(request.changeSet, readMap().pointRewards, teams, request.rewardOverrides), approvalMethod, shop);
+    };
     try {
       const stored = storage?.getItem(battleStateKey);
       if (stored) {
-        const { battles, teamStats, shop } = JSON.parse(stored);
+        const { battles, teamStats, shop, map: savedMap } = JSON.parse(stored);
         requests = [...requests.filter(request => !isBattle(request)), ...battles];
+        if (savedMap) map = savedMap;
         if (teamStats) map.teamStats = teamStats;
         shopState = shop;
       }
@@ -225,9 +358,11 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
           const name = typeof body?.name === 'string' ? body.name.trim() : '';
           const description = typeof body?.description === 'string' ? body.description.trim() : '';
           if (!name || name.length > 100) return reply({ message: 'Enter a name from 1 to 100 characters.' }, 400);
-          if (!description || description.length > 2000) return reply({ message: 'Enter a description from 1 to 2,000 characters.' }, 400);
+          if (!description || description.length > 2000) return reply({ message: 'Enter an ability from 1 to 2,000 characters.' }, 400);
+          const action = equipmentAction(body.action);
+          if (action === null) return reply({ message: 'Enter the optional action as text up to 4,000 characters.' }, 400);
           if (!validCredits(body.cost)) return reply({ message: 'Enter a credit cost of 0 or more in whole numbers.' }, 400);
-          const item = { id: crypto.randomUUID(), name, description, cost: body.cost, visible: false, perUser: 1, remaining: null };
+          const item = { id: crypto.randomUUID(), name, description, ...(action ? { action } : {}), cost: body.cost, visible: false, perUser: 1, remaining: null };
           const next = { ...shop, items: [...items, item] };
           return commitCampaignState(requests, map.teamStats, next)
             ? reply({ ...catalog(next), message: `${name} added to Backrooms.` }, 201) : saveError();
@@ -263,7 +398,8 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         }
         const cost = item.cost * quantity;
         if (cost > credits) return reply({ ...catalog(shop), message: 'Your team does not have enough credits.' }, 409);
-        const equipment = { id: crypto.randomUUID(), listingId: item.id, buyer: user.id, team, name: item.name, description: item.description, quantity };
+        const equipment = { id: crypto.randomUUID(), listingId: item.id, buyer: user.id, team, name: item.name, description: item.description,
+          ...(item.action ? { action: item.action } : {}), quantity };
         const balance = credits - cost;
         const stats = { ...map.teamStats, [team]: { ...map.teamStats?.[team], credits: balance } };
         const updated = { ...item, remaining: item.remaining === null ? null : item.remaining - quantity };
@@ -279,21 +415,22 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       expeditionRole: expeditionRole(target),
       expeditionMembershipRole: target.role === 'owner' ? 'owner' : target.expeditionMembershipRole || 'viewer',
       expeditionTeam: target.expeditionTeam || '',
-      canEditExpeditionRole: admin && !['owner', 'admin'].includes(target.role),
+      canEditExpeditionRole: canManageRoles && target.role !== 'owner',
+      canEditExpeditionTeam: admin && (target.role !== 'owner' || role === 'owner'),
     });
-    if (route === '/access') return reply({ user, access: { role, membershipRole: saved?.expeditionMembershipRole || 'viewer', team, canManageRoles: admin } });
-    if (route === '/roles/list') return admin ? reply({ patrons: accounts.list().map(patron) }) : forbidden();
+    if (route === '/access') return reply({ user, access: { role, membershipRole: saved?.expeditionMembershipRole || 'viewer', team, canManageRoles, canUseAdminMode: admin } });
+    if (route === '/roles/list') return canManageRoles ? reply({ patrons: accounts.list().map(patron) }) : forbidden();
     if (route === '/roles/set-role' && method === 'POST') {
-      if (!admin) return forbidden();
+      if (!canManageRoles) return forbidden();
       const target = accounts.list().find(item => item.id === body.targetUserId);
       if (!target) return reply({ message: 'Saved account not found.' }, 404);
       const currentRole = target.expeditionMembershipRole || 'viewer';
-      // The inherited-role control submits "owner" for site admins and owners.
-      const nextRole = ['owner', 'admin'].includes(target.role) && body.role === 'owner' ? currentRole : body.role;
-      if ((!patron(target).canEditExpeditionRole && nextRole !== currentRole) ||
-          (target.role === 'owner' && account.role !== 'owner' && body.team !== (target.expeditionTeam || ''))) return forbidden();
-      if (!expeditionRoles.includes(nextRole) || !expeditionTeams.includes(body.team)) return reply({ message: 'Invalid Expedition permission or team.' }, 400);
-      try { return reply({ patron: patron(accounts.assignExpedition(target.id, nextRole, body.team)), message: 'Expedition membership saved.' }); }
+      const currentTeam = target.expeditionTeam || '';
+      const nextRole = target.role === 'owner' && body.role === 'owner' ? currentRole : body.role;
+      const nextTeam = admin ? body.team : currentTeam;
+      if (target.role === 'owner' && (nextRole !== currentRole || (role !== 'owner' && (!admin || nextTeam !== currentTeam)))) return forbidden();
+      if (!expeditionRoles.includes(nextRole) || !expeditionTeams.includes(nextTeam)) return reply({ message: 'Invalid Expedition permission or team.' }, 400);
+      try { return reply({ patron: patron(accounts.assignExpedition(target.id, nextRole, nextTeam)), message: 'Expedition membership saved.' }); }
       catch (error) { return reply({ message: error.message }, 500); }
     }
     if (route === '/round') {
@@ -317,12 +454,106 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         }
       }
     }
-    if (route === '/battles' && method === 'GET') {
-      return reply({
-        battles: requests.filter(request => isBattle(request) && canSeeBattle(request))
-          .map(({ requesterEmail, ...request }) => ({ ...request, own: own(request) })),
-        team, teams, canLog: admin || (role === 'traveler' && Boolean(team)), canReview: admin,
+    if (route === '/lore') {
+      const canPost = canLog && teams.includes(team);
+      const round = readRound();
+      const tiles = (map.tiles ?? []).filter(tile => typeof tile?.id === 'string' && tile.id && Number(tile.type) !== 0)
+        .map(({ id, locationNumber }) => ({ id, locationNumber }));
+      const visibleBattles = battlesEnabled
+        ? requests.filter(request => isBattle(request) && request.status === 'accepted' && canSeeBattle(request)) : [];
+      const battleById = new Map(visibleBattles.map(({ id, changeSet, createdAt }) => [id, {
+        id, name: typeof changeSet.battleName === 'string' && changeSet.battleName.trim() || 'Unnamed battle',
+        type: battleTypes[changeSet.battleType], date: String(changeSet.battleDate || createdAt || '').slice(0, 10),
+        round: battleSubmissionRound(changeSet),
+        tileId: typeof changeSet.battleLocation === 'string' ? changeSet.battleLocation.trim() || null : null,
+      }]));
+      const eligibleBattleIds = new Set(canPost ? visibleBattles.filter(({ changeSet }) => battleParticipants(changeSet).includes(team))
+        .map(({ id }) => id) : []);
+      const visiblePost = ({ battleId, ...post }) => ({
+        ...post, battle: battleById.get(battleId) ?? null, hasBattle: Boolean(battleId),
       });
+      if (method !== 'GET' && method !== 'POST') return reply({ message: 'Invalid lore action.' }, 405);
+      if (method === 'POST' && !canPost) return forbidden();
+      try {
+        const posts = storage?.readLore?.() ?? lorePosts;
+        if (method === 'GET') {
+          const battles = [...eligibleBattleIds].map(id => battleById.get(id)).sort((first, second) => second.date.localeCompare(first.date));
+          return reply({ posts: posts.map(visiblePost), round, canPost, tiles, battles });
+        }
+
+        const title = typeof body?.title === 'string' ? body.title.trim() : '';
+        const text = typeof body?.text === 'string' ? body.text.trim() : '';
+        if (!title || title.length > 120 || !text || text.length > 12000) {
+          return reply({ message: 'Enter a title of up to 120 characters and lore of up to 12,000 characters.' }, 400);
+        }
+        const battleId = body.battleId ?? '';
+        if (battleId !== '' && !eligibleBattleIds.has(battleId)) {
+          return reply({ message: 'Choose an approved battle your team participated in.' }, 400);
+        }
+        const linkedBattle = battleById.get(battleId);
+        const manualTile = typeof body.tileId === 'string' ? body.tileId.trim() : body.tileId ?? '';
+        const tileId = linkedBattle?.tileId ?? manualTile;
+        if (linkedBattle?.tileId == null && tileId !== '' && !tiles.some(tile => tile.id === tileId)) {
+          return reply({ message: 'Enter an existing map tile ID, such as 9-20.' }, 400);
+        }
+        const linkedRound = linkedBattle?.round;
+        if (linkedRound == null && (!validRound(body.round) || body.round > round)) {
+          return reply({ message: `Choose a round from 1 through ${round}.` }, 400);
+        }
+        const post = {
+          id: crypto.randomUUID(), title, text, round: linkedRound ?? body.round, team, teamName: readRoster(team).displayName ?? '',
+          author: user.username, createdAt: new Date().toISOString(), tileId, battleId,
+        };
+        const next = [post, ...posts];
+        if (storage?.writeLore) storage.writeLore(next);
+        else lorePosts = next;
+        return reply({ post: visiblePost(post) }, 201);
+      } catch {
+        return reply({ message: `Unable to ${method === 'POST' ? 'save' : 'load'} Expedition lore.` }, 500);
+      }
+    }
+    if (route === '/battles' && method === 'GET') {
+      const visible = requests.filter(request => isBattle(request) && canSeeBattle(request));
+      return reply({
+        battles: visible.filter(request => request.status === 'accepted').map(battleReport),
+        pendingBattles: visible.filter(request => request.status === 'pending' && (canLog || own(request))).map(battleReport),
+        team, teams, canLog, canReview: admin,
+      });
+    }
+    if (route === '/battle-equipment' && method === 'GET') {
+      const params = new URL(input).searchParams;
+      const target = params.get('team');
+      if (!canLog || !teams.includes(target) || (!admin && team !== target)) return forbidden();
+      const editing = requests.find(report => report.id === params.get('edit') && report.status === 'pending' && isBattle(report) && own(report));
+      try {
+        return reply({ equipment: battleEquipmentOptions(target, editing?.id) });
+      } catch {
+        return reply({ message: 'Unable to load available battle equipment.' }, 500);
+      }
+    }
+    if (route === '/universal-equipment' && method === 'PATCH') {
+      if (!admin) return forbidden();
+      const item = universalEquipment.find(entry => entry.id === body?.id);
+      if (!item) return reply({ message: 'Universal equipment not found.' }, 404);
+      const description = typeof body.description === 'string' ? body.description.trim() : null;
+      const action = equipmentAction(body.action);
+      if (description === null || description.length > factionEquipmentLimits.description || action === null) {
+        return reply({ message: 'Enter ability and action text up to 4,000 characters each.' }, 400);
+      }
+      try {
+        const profiles = readUniversalProfiles();
+        const current = { ...item, ...profiles[item.id] };
+        if (body.expectedDescription !== current.description || body.expectedAction !== (current.action ?? '')) {
+          return reply({ equipment: current, message: 'This equipment changed while you were editing. Review the saved rules before saving again.' }, 409);
+        }
+        const updated = { ...item, description, ...(action ? { action } : {}) };
+        const next = { ...profiles, [item.id]: { description, ...(action ? { action } : {}) } };
+        storage?.setItem(universalEquipmentStorageKey, JSON.stringify(next));
+        universalProfiles = next;
+        return reply({ equipment: updated, message: 'Universal equipment saved.' });
+      } catch {
+        return reply({ message: 'Unable to save universal equipment in browser storage.' }, 500);
+      }
     }
     if (method === 'POST' && (route === '/battle-settings' || Object.hasOwn(requestSettings, route))) {
       if (!admin) return forbidden();
@@ -353,7 +584,8 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     if (route === '/map' && method === 'POST') {
       if (!admin) return forbidden();
       if (!body.map || !Array.isArray(body.map.tiles)) return reply({ message: 'A map with tiles is required.' }, 400);
-      if (!commitCampaignState(requests, withCurrentCredits(body.map.teamStats))) return saveError();
+      const teamStats = storage?.writeCampaignState ? map.teamStats : withCurrentCredits(body.map.teamStats);
+      if (!commitCampaignState(requests, teamStats, shopState, body.map)) return saveError();
       map = { ...structuredClone(body.map), ...(map.teamStats ? { teamStats: map.teamStats } : {}) };
       for (const { field } of Object.values(requestSettings)) delete map[field];
       return reply({ map: readMap(), message: 'Expedition map saved locally.' });
@@ -372,17 +604,21 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         const locations = getTeamLocations(map.tiles);
         return reply({
           assignedTeam: team,
+          universalEquipment: universalCatalog(),
           teams: teams.map(name => {
             const roster = readRoster(name);
-            const purchased = (shopState?.purchases ?? []).filter(item => item.team === name)
-              .map(({ id, name, description, quantity }) => ({ id, name, description, quantity }));
+            const purchased = (shopState?.purchases ?? []).filter(item => item.team === name && purchaseRemaining(item) > 0)
+              .map(item => ({ id: item.id, name: item.name, description: item.description,
+                ...(item.action ? { action: item.action } : {}), quantity: purchaseRemaining(item) }));
             return {
               name,
               ...roster,
               items: [...roster.items, ...purchased],
+              factionEquipment: factionEquipmentSlots(roster.factionEquipment),
               points: readTeamPoints(name),
               locations: locations.get(name),
               canAddEntries: admin || (role === 'traveler' && name === team),
+              canAddEquipment: admin,
               canUploadUnitImages: role === 'traveler' && name === team,
               canEditPoints: admin,
             };
@@ -392,7 +628,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         return reply({ message: 'Unable to load team rosters from browser storage.' }, 500);
       }
     }
-    const teamRoute = route.match(/^\/teams\/([a-z]+)\/(name|lore|units|items|points|weapons|abilities|actions|unit-image|unit-order)$/);
+    const teamRoute = route.match(/^\/teams\/([a-z]+)\/(name|lore|units|items|faction-equipment|points|weapons|abilities|actions|unit-image|unit-order)$/);
     if (teamRoute && ['POST', 'PATCH', 'DELETE'].includes(method)) {
       const [, target, collection] = teamRoute;
       if (!teams.includes(target)) return reply({ message: 'Expedition team not found.' }, 404);
@@ -401,7 +637,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       if (deleting && !['abilities', 'actions'].includes(collection)) {
         return reply({ message: 'Removal is available for abilities and actions.' }, 405);
       }
-      if (editing && ['name', 'lore', 'items', 'points', 'unit-image', 'unit-order'].includes(collection)) {
+      if (editing && ['name', 'lore', 'items', 'faction-equipment', 'points', 'unit-image', 'unit-order'].includes(collection)) {
         return reply({ message: 'Use POST for this team endpoint.' }, 405);
       }
 
@@ -439,6 +675,37 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         }
       }
       if (!admin && (role !== 'traveler' || target !== team)) return forbidden();
+      if (collection === 'items' && !admin) return forbidden();
+      if (collection === 'faction-equipment') {
+        const { slot, equipment, expectedEquipment } = body ?? {};
+        const isEquipment = entry => entry === null || (entry && typeof entry.name === 'string'
+          && typeof entry.description === 'string' && equipmentAction(entry.action) !== null);
+        if (!Number.isInteger(slot) || slot < 1 || slot > factionEquipmentSlotCount
+          || !isEquipment(equipment) || !isEquipment(expectedEquipment)) {
+          return reply({ message: `Choose a faction equipment slot from 1 to ${factionEquipmentSlotCount} and enter its name and description as text.` }, 400);
+        }
+        const name = equipment?.name.trim() ?? '';
+        const description = equipment?.description.trim() ?? '';
+        const action = equipmentAction(equipment?.action);
+        if (equipment && (!name || name.length > factionEquipmentLimits.name || description.length > factionEquipmentLimits.description)) {
+          return reply({ message: `Enter a name up to ${factionEquipmentLimits.name} characters and a description up to ${factionEquipmentLimits.description} characters.` }, 400);
+        }
+        try {
+          const roster = readRoster(target);
+          const factionEquipment = factionEquipmentSlots(roster.factionEquipment);
+          const current = factionEquipment[slot - 1];
+          if (current?.name !== expectedEquipment?.name || current?.description !== expectedEquipment?.description
+            || (current?.action ?? '') !== (expectedEquipment?.action ?? '')) {
+            return reply({ equipment: current, message: 'This slot changed while you were editing. Review the saved equipment before saving again.' }, 409);
+          }
+          const updated = equipment ? { name, description, ...(action ? { action } : {}) } : null;
+          factionEquipment[slot - 1] = updated;
+          writeRoster(target, { ...roster, factionEquipment });
+          return reply({ equipment: updated, message: updated ? 'Faction equipment saved.' : 'Faction equipment slot cleared.' });
+        } catch {
+          return reply({ message: 'Unable to save faction equipment in browser storage.' }, 500);
+        }
+      }
       if (collection === 'unit-order') {
         const { unitId, entryId, direction, collection: section } = body ?? {};
         if (typeof section !== 'string' || !Object.hasOwn(unitEntryTypes, section) || ![-1, 1].includes(direction)) {
@@ -534,6 +801,13 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
           updatedStats[key] = stats[key];
         }
         if (Object.keys(updatedStats).length) entry.stats = updatedStats;
+      } else if (collection === 'items') {
+        const description = body.description === undefined ? '' : typeof body.description === 'string' ? body.description.trim() : null;
+        const action = equipmentAction(body.action);
+        if (description === null || description.length > factionEquipmentLimits.description || action === null) {
+          return reply({ message: 'Enter ability and action text up to 4,000 characters each.' }, 400);
+        }
+        Object.assign(entry, equipmentRules({ description, action }));
       }
       try {
         const roster = readRoster(target);
@@ -551,7 +825,14 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         return reply({ message: 'Unable to save the team roster in browser storage.' }, 500);
       }
     }
-    if (route === '/bounties/list') return reply({ bounties: [], pendingRequests: [] });
+    if (route === '/bounties/list') {
+      try {
+        const saved = JSON.parse(storage?.getItem('expedition-preview-bounties') ?? 'null');
+        return reply(saved ?? { bounties: [], pendingRequests: [] });
+      } catch {
+        return reply({ message: 'Unable to read the Expedition bounty data.' }, 500);
+      }
+    }
     if (route.startsWith('/map-requests')) {
       const pending = requests.filter(request => request.status === 'pending');
       const visible = request => battlesEnabled || !isBattle(request);
@@ -563,37 +844,97 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       if (method === 'POST' && ['/map-requests', '/map-requests/update'].includes(route)) {
         if (!admin && role !== 'traveler') return forbidden();
         if (!body.changeSet || typeof body.changeSet !== 'object' || Array.isArray(body.changeSet)) return reply({ message: 'A change set is required.' }, 400);
-        const existing = route.endsWith('/update') ? pending.find(request => request.id === body.requestId) : null;
+        const existing = route.endsWith('/update') ? requests.find(request => request.id === body.requestId
+          && (request.status === 'pending' || (request.status === 'accepted' && isBattle(request)))) : null;
         if (route.endsWith('/update') && !existing) return reply({ message: 'Request not found.' }, 404);
+        if (existing?.status === 'accepted' && !admin) return forbidden();
         if (existing && !admin && !own(existing)) return forbidden();
         if (!admin && (!team || body.changeSet.requesterTeam !== team)) return reply({ message: 'Choose your assigned Expedition team.' }, 403);
         if (!visible(existing) || !visible(body)) return battlesUnavailable();
         if (existing && isBattle(existing) !== (body.changeSet.requestType === 'battle')) {
           return reply({ message: 'A battle report cannot be converted into a map request or vice versa.' }, 400);
         }
+        if (isBattle(existing) && isStaleReview(existing)) return staleReview();
+        const changeSet = structuredClone(body.changeSet);
+        if (isBattle(body)) {
+          const submissionRound = existing ? battleSubmissionRound(existing.changeSet) : readRound();
+          if (submissionRound == null) delete changeSet.submissionRound;
+          else changeSet.submissionRound = submissionRound;
+        }
+        if (existing?.status === 'accepted') {
+          const error = validateBattle(changeSet, teams, map.tiles, { recordedLocation: existing.changeSet.battleLocation });
+          if (error) return reply({ message: error }, 400);
+          const updated = {
+            ...existing, changeSet, revision: (existing.revision ?? 1) + 1,
+            updatedAt: new Date().toISOString(),
+          };
+          if (!commitCampaignState(requests.map(item => item === existing ? updated : item))) return saveError();
+          return reply({ request: battleReport(updated), message: 'Battle report updated.' });
+        }
+        let equipmentUsed;
+        let rewardOverrides;
         if (body.changeSet.requestType === 'battle') {
           const error = validateBattle(body.changeSet, teams, map.tiles);
           if (error) return reply({ message: error }, 400);
+          rewardOverrides = body.rewardOverrides === undefined ? existing?.rewardOverrides ?? {} : body.rewardOverrides;
+          if (!validRewardOverrides(body.changeSet, teams, rewardOverrides)) {
+            return reply({ message: 'Enter valid reward amounts for participating Expedition teams. Supply Points must be between 0 and 10.' }, 400);
+          }
+          const reporter = existing?.equipmentUsed?.find(use => use.source === 'reporter');
+          if (!existing || own(existing)) {
+            const previousChoices = reporter?.team === body.changeSet.requesterTeam ? reporter.items : [];
+            const result = readBattleEquipment(body.equipment ?? previousChoices, body.changeSet.requesterTeam, existing?.id);
+            if (result.message) return reply({ message: result.message }, result.status);
+            equipmentUsed = [{ source: 'reporter', team: body.changeSet.requesterTeam, player: user.username, items: result.items }];
+          } else {
+            equipmentUsed = reporter?.team === body.changeSet.requesterTeam ? [reporter] : [];
+          }
         }
         const request = {
           ...(existing || { id: crypto.randomUUID(), requesterUserId: user.id, requesterUsername: user.username, requesterEmail: '', createdAt: new Date().toISOString() }),
-          changeSet: structuredClone(body.changeSet), status: 'pending', updatedAt: new Date().toISOString(),
+          changeSet, status: 'pending', updatedAt: new Date().toISOString(),
+          ...(body.changeSet.requestType === 'battle' ? {
+            equipmentUsed, rewardOverrides, confirmedTeams: [], revision: existing ? (existing.revision ?? 1) + 1 : 1,
+          } : {}),
         };
+        if (isBattle(request)) {
+          const review = battleReview(request);
+          if (!review.requiresAdminApproval && review.requiredTeams.length === 0) return acceptBattle(request, 'participants');
+        }
         const next = existing ? requests.map(item => item === existing ? request : item) : [...requests, request];
         if (isBattle(request) && !commitCampaignState(next)) return saveError();
         requests = next;
-        return reply({ request, message: 'Expedition request saved locally.' });
+        return reply({ request: isBattle(request) ? battleReport(request) : request, message: 'Expedition request saved locally.' });
+      }
+      if (method === 'POST' && route === '/map-requests/confirm') {
+        const request = pending.find(item => item.id === body?.requestId && isBattle(item));
+        if (!request || !canSeeBattle(request)) return reply({ message: 'Battle report not found.' }, 404);
+        if (!visible(request)) return battlesUnavailable();
+        const review = battleReview(request);
+        if (!canLog || own(request) || !review.requiredTeams.includes(team)) return forbidden();
+        if (isStaleReview(request)) return staleReview();
+        if (review.confirmedTeams.includes(team)) return reply({ request: battleReport(request), message: 'Your team already confirmed this report.' });
+        const result = readBattleEquipment(body.equipment ?? [], team);
+        if (result.message) return reply({ message: result.message }, result.status);
+        const updated = {
+          ...request, confirmedTeams: [...review.confirmedTeams, team], updatedAt: new Date().toISOString(),
+          equipmentUsed: [...(request.equipmentUsed ?? []), { source: 'participant', team, player: user.username, items: result.items }],
+        };
+        if (!review.requiresAdminApproval && updated.confirmedTeams.length === review.requiredTeams.length) return acceptBattle(updated, 'participants');
+        if (!commitCampaignState(requests.map(item => item === request ? updated : item))) return saveError();
+        return reply({ request: battleReport(updated), message: 'Your team confirmed the battle report.' });
       }
       if (method === 'POST' && ['/map-requests/deny', '/map-requests/cancel-own'].includes(route)) {
         const request = pending.find(request => request.id === body.requestId);
         if (!request) return reply({ message: 'Request not found.' }, 404);
         if (route.endsWith('/deny') ? !admin : !own(request)) return forbidden();
         if (!visible(request)) return battlesUnavailable();
+        if (isBattle(request) && isStaleReview(request)) return staleReview();
         const updated = { ...request, status: route.endsWith('/deny') ? 'denied' : 'canceled', reviewedAt: new Date().toISOString(), reviewedByUsername: user.username };
         const next = requests.map(item => item === request ? updated : item);
         if (isBattle(request) && !commitCampaignState(next)) return saveError();
         requests = next;
-        return reply({ request: updated, message: 'Request closed.' });
+        return reply({ request: isBattle(updated) ? battleReport(updated) : updated, message: 'Request closed.' });
       }
       if (method === 'POST' && route === '/map-requests/accept' && typeof body?.requestId === 'string') {
         if (!admin) return forbidden();
@@ -607,8 +948,10 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
             || (change.requestType === 'movement' && change.movementType === 'manoeuvre'));
         let awards;
         if (change.requestType === 'battle') {
-          awards = battleAwards(change, readMap().pointRewards, teams);
-        } else if (isResupply || isPointOnly) {
+          if (isStaleReview(request)) return staleReview();
+          return acceptBattle(request, 'admin');
+        }
+        if (isResupply || isPointOnly) {
           const { requesterTeam, supplyPointsCost = 0, supplyPointsGain = 0, campaignPointsGain = 0 } = change;
           if (!teams.includes(requesterTeam) || [supplyPointsCost, supplyPointsGain, campaignPointsGain]
             .some(value => !Number.isSafeInteger(value) || value < 0)
@@ -623,24 +966,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
             [requesterTeam, 'campaignPoints', campaignPointsGain],
           ];
         }
-        if (awards) {
-          const stats = structuredClone(map.teamStats ?? {});
-          const awardedPoints = [];
-          for (const [recipient, field, amount] of awards) {
-            stats[recipient] ??= { supplyPoints: 0, campaignPoints: 0 };
-            const limit = field === 'supplyPoints' ? 10 : Number.MAX_SAFE_INTEGER;
-            const previous = stats[recipient][field] ?? 0;
-            stats[recipient][field] = Math.min(limit, Math.max(0, previous + amount));
-            const gained = stats[recipient][field] - previous;
-            if (gained > 0) awardedPoints.push({ team: recipient, field, amount: gained });
-          }
-          const updated = {
-            ...request, status: 'accepted', reviewedAt: new Date().toISOString(), reviewedByUsername: user.username,
-            ...(isBattle(request) ? { awardedPoints } : {}),
-          };
-          if (!commitCampaignState(requests.map(item => item === request ? updated : item), stats)) return saveError();
-          return reply({ request: updated, map: readMap(), message: 'Expedition request accepted.' });
-        }
+        if (awards) return acceptRequest(request, awards);
       }
     }
     return reply({ message: `The local simulator does not implement ${method} /expedition${route}. No changes were saved.` }, 501);

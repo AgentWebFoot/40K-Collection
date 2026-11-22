@@ -1,10 +1,10 @@
+import { expeditionRoles, expeditionTeams } from '../Expedition/expedition-membership.mjs';
 import { campaignTestPlayers } from '../HybridCampaign/test-player-fixtures.mjs';
 
+export { expeditionRoles, expeditionTeams };
 export const roles = ['user', 'traveler', 'admin', 'owner'];
 export const membershipRoles = ['viewer', 'participant', 'writer', 'admin'];
 export const effectiveRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.membershipRole || 'viewer';
-export const expeditionRoles = ['viewer', 'traveler', 'admin'];
-export const expeditionTeams = ['', 'red', 'blue', 'green', 'yellow', 'purple', 'white', 'black'];
 export const expeditionRole = account => ['admin', 'owner'].includes(account.role) ? account.role : account.expeditionMembershipRole || 'viewer';
 /** Campaign roles are a separate, local-preview assignment. They never alter site permission. */
 export const campaignRoles = ['owner-gm', 'gm', 'co-gm', 'player', 'display'];

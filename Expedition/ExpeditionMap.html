@@ -612,6 +612,19 @@
                 overscroll-behavior: contain;
             }
 
+            .settings-modal-body {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                min-height: 0;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            }
+
+            .settings-modal-body > * {
+                flex-shrink: 0;
+            }
+
             .modal-header {
                 display: flex;
                 align-items: flex-start;
@@ -657,70 +670,6 @@
                 line-height: 1.4;
             }
 
-            .settings-role-list {
-                display: grid;
-                gap: 10px;
-                overflow: auto;
-                padding-right: 2px;
-            }
-
-            .settings-role-card {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) 170px 170px;
-                gap: 12px;
-                align-items: center;
-                padding: 12px;
-                border: 1px solid #555;
-                border-radius: 10px;
-                background: #202020;
-            }
-
-            .settings-role-card p {
-                margin: 4px 0 0;
-                color: #bfbfbf;
-                font-size: 0.88rem;
-                line-height: 1.4;
-            }
-
-            .settings-role-name {
-                margin: 0;
-                font-size: 0.95rem;
-            }
-
-            .settings-role-badges {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-                margin-top: 8px;
-            }
-
-            .settings-role-badge {
-                display: inline-flex;
-                align-items: center;
-                padding: 4px 8px;
-                border: 1px solid #5c5c5c;
-                border-radius: 999px;
-                background: #141414;
-                color: #e5e5e5;
-                font-size: 0.8rem;
-            }
-
-            .settings-role-select {
-                width: 100%;
-                padding: 8px;
-                border: 1px solid #666;
-                border-radius: 6px;
-                background: #111;
-                color: #fff;
-            }
-
-            .settings-role-control-label {
-                display: block;
-                margin-bottom: 6px;
-                color: #bfbfbf;
-                font-size: 0.8rem;
-            }
-
             .settings-round-row {
                 display: flex;
                 align-items: flex-end;
@@ -749,11 +698,24 @@
                 white-space: nowrap;
             }
 
-            @media (max-width: 820px) {
-                .settings-role-card {
-                    grid-template-columns: 1fr;
-                }
+            .settings-supply-costs {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                gap: 10px;
+                margin: 12px 0;
+            }
 
+            .settings-supply-costs label {
+                display: grid;
+                gap: 4px;
+            }
+
+            .settings-supply-costs input {
+                box-sizing: border-box;
+                width: 100%;
+            }
+
+            @media (max-width: 820px) {
                 .settings-round-row {
                     flex-wrap: wrap;
                     align-items: stretch;
@@ -1056,12 +1018,10 @@
                     <h3 id="tileTitle"></h3>
                     <div id="travelerModeActions" class="mode-actions hidden">
                         <button id="movementModeButton" type="button" onclick="enterRequestMode('movement')">Movement</button>
-                        <button id="battleModeButton" type="button" onclick="enterRequestMode('battle')">Battle</button>
                         <button id="actionModeButton" type="button" onclick="enterRequestMode('action')">Action</button>
                     </div>
                     <div id="adminModeActions" class="mode-actions hidden">
                         <button id="adminMovementModeButton" type="button" onclick="enterRequestMode('movement')">Movement</button>
-                        <button id="adminBattleModeButton" type="button" onclick="enterRequestMode('battle')">Battle</button>
                         <button id="adminActionModeButton" type="button" onclick="enterRequestMode('action')">Action</button>
                         <button id="adminModeButton" type="button" onclick="enterAdminMode()">Admin Mode</button>
                     </div>
@@ -1129,7 +1089,7 @@
 
                         <label id="requestSupplyPointCostField" class="hidden">
                             <h4>Supply Point Cost:</h4>
-                            <input id="requestSupplyPointCost" type="number" min="0" max="10" step="1" value="0">
+                            <input id="requestSupplyPointCost" type="number" min="0" step="1" value="0">
                         </label>
 
                         <label id="requestCampaignPointsField" class="hidden">
@@ -1315,7 +1275,7 @@
             </div>
 
             <div class="right-panel-shell">
-                <button id="openExpeditionSettingsButton" class="settings-gear-button settings-gear-anchor hidden" type="button" onclick="openExpeditionSettingsModal()" aria-label="Open Expedition settings" title="Settings">&#9881;</button>
+                <button id="openExpeditionSettingsButton" class="settings-gear-button settings-gear-anchor hidden" type="button" onclick="openExpeditionSettingsModal()" aria-label="Open Expedition map settings" title="Map Settings">&#9881;</button>
                 <button id="openExpeditionHistoryButton" class="settings-gear-button settings-gear-anchor history-button-anchor hidden" type="button" onclick="openExpeditionHistoryModal()" aria-label="Open Expedition request history" title="History">
                     <svg class="history-button-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path class="history-page-fill" d="M7 3.5h7.5l4.5 4.5V20a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5Z"></path>
@@ -1418,25 +1378,35 @@
                 <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="expeditionSettingsTitle">
                     <div class="modal-header">
                         <div>
-                            <h3 id="expeditionSettingsTitle">Expedition Settings</h3>
+                            <h3 id="expeditionSettingsTitle">Expedition Map Settings</h3>
                         </div>
                         <button class="modal-close-button" type="button" onclick="closeExpeditionSettingsModal()" aria-label="Close settings">&times;</button>
                     </div>
-                    <div class="settings-round-row">
-                        <label id="expeditionRoundField" class="hidden">
-                            <h4>Round Number:</h4>
-                            <input id="expeditionRoundInput" type="number" min="1" step="1">
-                        </label>
-                        <button id="saveExpeditionRoundButton" class="hidden" type="button" onclick="saveExpeditionRound()">Save Round</button>
-                    </div>
-                    <div class="settings-header-actions">
-                        <div id="expeditionSettingsAccessSummary" class="helper-text">Loading access...</div>
-                        <button id="refreshExpeditionRolesButton" type="button" onclick="loadExpeditionRoleList()">Refresh Members</button>
-                    </div>
-                    <div id="expeditionSettingsStatus" class="status-message hidden"></div>
-                    
-                    <div id="expeditionSettingsRoleList" class="settings-role-list">
-                        <div class="helper-text">Loading Expedition members...</div>
+                    <div class="settings-modal-body" role="region" aria-label="Expedition settings options" tabindex="0">
+                        <form id="expeditionMovementLimitForm" class="settings-round-row hidden">
+                            <label>
+                                <h4>Manoeuvre limit (hexes)</h4>
+                                <input id="expeditionMovementLimitInput" type="number" min="0" max="9007199254740991" step="1" required>
+                            </label>
+                            <button id="saveExpeditionMovementLimitButton" type="submit">Save Movement Limit</button>
+                        </form>
+                        <form id="expeditionSupplyCostsForm" class="hidden">
+                            <fieldset id="expeditionSupplyCostsFields" class="settings-supply-costs">
+                                <legend>Supply Point Costs</legend>
+                                <label>Manoeuvre per hex <input name="manoeuvre" type="number" min="0" max="10" step="1" required></label>
+                                <label>Regroup per hex <input name="regroup" type="number" min="0" max="10" step="1" required></label>
+                                <label>Scout per hex <input name="scout" type="number" min="0" max="10" step="1" required></label>
+                                <label>Encamp <input name="encamp" type="number" min="0" max="10" step="1" required></label>
+                                <label>Demolish <input name="demolish" type="number" min="0" max="10" step="1" required></label>
+                                <label>Search <input name="search" type="number" min="0" max="10" step="1" required></label>
+                            </fieldset>
+                            <button id="saveExpeditionSupplyCostsButton" type="submit">Save Supply Point Costs</button>
+                        </form>
+                        <form id="expeditionPointRewardsForm" class="hidden">
+                            <fieldset id="expeditionPointRewardFields" aria-label="Point rewards"></fieldset>
+                            <button id="saveExpeditionPointRewardsButton" type="submit">Save Point Rewards</button>
+                        </form>
+                        <div id="expeditionSettingsStatus" class="status-message hidden"></div>
                     </div>
                 </div>
             </div>
@@ -1459,7 +1429,6 @@
                             <select id="expeditionHistoryRequestTypeFilter">
                                 <option value="">All request types</option>
                                 <option value="movement">Movement</option>
-                                <option value="battle">Battle</option>
                                 <option value="action">Action</option>
                             </select>
                         </label>
@@ -1554,6 +1523,7 @@
             </div>
         </div>
 
+        <script src="point-rewards.js"></script>
         <script>
             const MARKER_ICON_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"></circle><path d="M6 21c0-3.5 2.7-6 6-6s6 2.5 6 6"></path></svg>';
             const BASE_ICON_SVG = '<span class="hex-structure-symbol" aria-hidden="true">&#9812;</span>';
@@ -1711,6 +1681,15 @@
                 MARKER_OPTIONS.map((option) => [option.value, option.label])
             );
             const EXPEDITION_TEAMS = MARKER_OPTIONS.filter((option) => option.value);
+            const DEFAULT_MOVEMENT_LIMIT = 3;
+            const DEFAULT_SUPPLY_POINT_COSTS = {
+                manoeuvre: 1,
+                regroup: 1,
+                scout: 1,
+                encamp: 2,
+                demolish: 3,
+                search: 0,
+            };
             const EXPEDITION_REQUEST_MODES = [
                 { value: 'movement', label: 'Movement' },
                 { value: 'battle', label: 'Battle' },
@@ -1807,8 +1786,6 @@
             let expeditionMembershipRole = 'viewer';
             let expeditionTeam = '';
             let canManageExpeditionRoles = false;
-            let isLoadingExpeditionRoleList = false;
-            let expeditionPatrons = [];
             const API_URL = params.get('apiUrl') || 'http://localhost:5000';
 
             const tiles = [];
@@ -1816,7 +1793,6 @@
             const selectedTiles = new Set();
             let showExplorationIndicators = false;
             let isSaving = false;
-            let isSavingExpeditionRound = false;
             let isLoadingRequests = false;
             let pendingRequests = [];
             let isLoadingMyRequests = false;
@@ -1856,10 +1832,8 @@
             const travelerModeActions = document.getElementById("travelerModeActions");
             const adminModeActions = document.getElementById("adminModeActions");
             const movementModeButton = document.getElementById("movementModeButton");
-            const battleModeButton = document.getElementById("battleModeButton");
             const actionModeButton = document.getElementById("actionModeButton");
             const adminMovementModeButton = document.getElementById("adminMovementModeButton");
-            const adminBattleModeButton = document.getElementById("adminBattleModeButton");
             const adminActionModeButton = document.getElementById("adminActionModeButton");
             const adminModeButton = document.getElementById("adminModeButton");
             const tileTitle = document.getElementById("tileTitle");
@@ -1953,13 +1927,16 @@
             const openExpeditionBountyButton = document.getElementById("openExpeditionBountyButton");
             const openExpeditionPlayerInfoButton = document.getElementById("openExpeditionPlayerInfoButton");
             const expeditionSettingsModal = document.getElementById("expeditionSettingsModal");
-            const expeditionSettingsAccessSummary = document.getElementById("expeditionSettingsAccessSummary");
             const expeditionSettingsStatus = document.getElementById("expeditionSettingsStatus");
-            const expeditionRoundField = document.getElementById("expeditionRoundField");
-            const expeditionRoundInput = document.getElementById("expeditionRoundInput");
-            const saveExpeditionRoundButton = document.getElementById("saveExpeditionRoundButton");
-            const expeditionSettingsRoleList = document.getElementById("expeditionSettingsRoleList");
-            const refreshExpeditionRolesButton = document.getElementById("refreshExpeditionRolesButton");
+            const expeditionMovementLimitForm = document.getElementById("expeditionMovementLimitForm");
+            const expeditionMovementLimitInput = document.getElementById("expeditionMovementLimitInput");
+            const saveExpeditionMovementLimitButton = document.getElementById("saveExpeditionMovementLimitButton");
+            const expeditionSupplyCostsForm = document.getElementById("expeditionSupplyCostsForm");
+            const expeditionSupplyCostsFields = document.getElementById("expeditionSupplyCostsFields");
+            const saveExpeditionSupplyCostsButton = document.getElementById("saveExpeditionSupplyCostsButton");
+            const expeditionPointRewardsForm = document.getElementById("expeditionPointRewardsForm");
+            const expeditionPointRewardFields = document.getElementById("expeditionPointRewardFields");
+            const saveExpeditionPointRewardsButton = document.getElementById("saveExpeditionPointRewardsButton");
             const expeditionHistoryModal = document.getElementById("expeditionHistoryModal");
             const expeditionHistoryStatus = document.getElementById("expeditionHistoryStatus");
             const expeditionHistoryRequestTypeFilter = document.getElementById("expeditionHistoryRequestTypeFilter");
@@ -2049,10 +2026,7 @@
                     resetPendingResupplyAction();
                 }
                 const pendingLocationNumber = getPendingEditorLocationNumber(primarySelectedTile);
-                const suggestedMovementSupplyPointCost = getSuggestedMovementSupplyPointCost();
-                const suggestedEncampSupplyPointCost = getSuggestedEncampSupplyPointCost();
-                const suggestedDemolishSupplyPointCost = getSuggestedDemolishSupplyPointCost();
-                const suggestedScoutSupplyPointCost = getSuggestedScoutSupplyPointCost(primarySelectedTile);
+                const supplyPointQuote = getSupplyPointQuote(primarySelectedTile);
                 const showPointRewardFields = isSearchAction || (
                     isMovementRequest
                     && isNormalMovementRequest
@@ -2060,15 +2034,7 @@
                     && primarySelectedTile
                     && allowsManoeuvrePointRewards(pendingLocationNumber)
                 );
-                const showSupplyPointCostField = isSearchAction
-                    || suggestedEncampSupplyPointCost > 0
-                    || suggestedDemolishSupplyPointCost > 0
-                    || suggestedScoutSupplyPointCost > 0
-                    || (
-                    isMovementRequest
-                    && movementType !== 'hold'
-                    && suggestedMovementSupplyPointCost > 0
-                );
+                const showSupplyPointCostField = Boolean(supplyPointQuote) && hasMovementTileSelection;
                 const hasOffTeamSelection = (
                     isTravelerRequest
                     && isNormalMovementRequest
@@ -2097,9 +2063,9 @@
                         { excludeTileId: primarySelectedTile.id }
                     )
                     : 0;
+                const movementLimit = getMovementLimit();
                 const needsManoeuvreDistanceOverride = isManoeuvreMoveRequest
-                    && Number.isFinite(manoeuvreDistance)
-                    && manoeuvreDistance > 3;
+                    && exceedsMovementLimit(manoeuvreDistance);
                 const showLocationNumberField = isBattleRequest
                     ? false
                     : isActionRequest
@@ -2137,7 +2103,7 @@
                     || !hasMovementTileSelection
                     || (isResupplyAction && !resupplyActionPrepared && !resupplyAmountOverrideInput?.checked)
                 );
-                requestSupplyPointCostField?.classList.toggle('hidden', !showSupplyPointCostField || !hasMovementTileSelection);
+                requestSupplyPointCostField?.classList.toggle('hidden', !showSupplyPointCostField);
                 requestCampaignPointsField?.classList.toggle('hidden', !showPointRewardFields || !hasMovementTileSelection);
                 resupplyActionField?.classList.toggle(
                     'hidden',
@@ -2193,7 +2159,7 @@
                 }
                 if (campLocationOverrideLabel) {
                     campLocationOverrideLabel.textContent = needsManoeuvreDistanceOverride
-                        ? `Allow manoeuvre farther than 3 tiles${Number.isFinite(manoeuvreDistance) ? ` (${manoeuvreDistance} tiles)` : ''}`
+                        ? `Allow manoeuvre past the ${movementLimit}-hex limit (${manoeuvreDistance} hexes)`
                         : 'Allow camp away from my team';
                 }
                 syncRegroupDestinationOptions();
@@ -2225,7 +2191,7 @@
                     resupplyActionButton.disabled = !resupplyDetails.eligible || (resupplyDetails.requiresRoll && resupplyActionPrepared);
                 }
                 if (resupplyActionHelp) {
-                    if (isResupplyAction && resupplyActionPrepared && resupplyActionRolled && getPreparedResupplyPoints() > 0) {
+                    if (isResupplyAction && resupplyActionPrepared && resupplyActionRolled) {
                         resupplyActionHelp.textContent = `Resupply prepared for ${getPreparedResupplyPoints()} supply point${getPreparedResupplyPoints() === 1 ? '' : 's'}.`;
                     } else {
                         resupplyActionHelp.textContent = isResupplyAction ? (resupplyDetails.helpText || '') : '';
@@ -2285,25 +2251,11 @@
                     campLocationOverrideInput.checked = false;
                 }
 
-                if (!showPointRewardFields) {
-                    if (requestSupplyPointsInput) {
-                        requestSupplyPointsInput.value = isResupplyAction ? String(getPreparedResupplyPoints()) : '0';
-                    }
-                    if (requestCampaignPointsInput) {
-                        requestCampaignPointsInput.value = '0';
-                    }
-                }
+                syncRequestRewardDefaults(showPointRewardFields && hasMovementTileSelection
+                    ? (isSearchAction ? 'search' : 'manoeuvre')
+                    : '', isResupplyAction);
 
-                if (!showSupplyPointCostField && requestSupplyPointCostInput) {
-                    requestSupplyPointCostInput.value = '0';
-                    requestSupplyPointCostInput.dataset.manualOverride = 'false';
-                    requestSupplyPointCostInput.dataset.suggestedCost = '0';
-                    requestSupplyPointCostInput.dataset.sourceKey = '';
-                } else if (suggestedEncampSupplyPointCost > 0) {
-                    syncSuggestedEncampSupplyPointCost();
-                } else if (suggestedDemolishSupplyPointCost > 0) {
-                    syncSuggestedDemolishSupplyPointCost();
-                }
+                syncSuggestedSupplyPointCost(showSupplyPointCostField ? supplyPointQuote : null);
 
                 if (requestCommentField) {
                     const commentRequired = isRequestBoardMode(activeBoardMode)
@@ -2334,16 +2286,18 @@
                 syncConditionalEditorFields();
             });
             requestSupplyPointCostInput?.addEventListener('input', () => {
-                const suggestedCost = normalizeSupplyPointValue(requestSupplyPointCostInput?.dataset.suggestedCost);
+                const suggestedCost = normalizeTeamPointValue(requestSupplyPointCostInput?.dataset.suggestedCost);
                 const currentCost = getRequestedSupplyPointCost();
                 requestSupplyPointCostInput.dataset.manualOverride = currentCost !== suggestedCost ? 'true' : 'false';
                 syncConditionalEditorFields();
             });
+            expeditionSupplyCostsForm.addEventListener('submit', saveExpeditionSupplyCosts);
+            expeditionMovementLimitForm.addEventListener('submit', saveExpeditionMovementLimit);
+            expeditionPointRewardsForm.addEventListener('submit', saveExpeditionPointRewards);
             rollLocationNumberButton?.addEventListener('click', rollLocationNumber);
             resupplyActionButton?.addEventListener('click', handleResupplyAction);
             requestTeamPresenceButton?.addEventListener('click', () => {
                 requestTeamPresenceInput.value = 'present';
-                syncSuggestedMovementSupplyPointCost(true);
                 syncConditionalEditorFields();
                 if (!manoeuvreOverrideApplyButton?.classList.contains('hidden')) {
                     setSaveStatus('', '');
@@ -2507,7 +2461,7 @@
             }
 
             function getRequestedSupplyPointCost() {
-                return normalizeSupplyPointValue(requestSupplyPointCostInput?.value);
+                return normalizeTeamPointValue(requestSupplyPointCostInput?.value);
             }
 
             function getRequestedCampaignPoints() {
@@ -3273,7 +3227,7 @@
                 });
             }
 
-            function getSuggestedMovementSupplyPointCost() {
+            function getPendingMovementDistance() {
                 if (
                     !isRequestBoardMode(activeBoardMode)
                     || getActiveRequestMode() !== 'movement'
@@ -3336,143 +3290,71 @@
                 return 0;
             }
 
-            function getSuggestedEncampSupplyPointCost() {
-                return hasPendingEncampRequest() ? 2 : 0;
+            function getSupplyPointCosts() {
+                return Object.fromEntries(Object.entries(DEFAULT_SUPPLY_POINT_COSTS).map(([action, defaultCost]) => {
+                    const cost = liveMapData?.supplyPointCosts?.[action];
+                    return [action, Number.isInteger(cost) && cost >= 0 && cost <= 10 ? cost : defaultCost];
+                }));
             }
 
-            function getSuggestedDemolishSupplyPointCost() {
-                return hasPendingDemolishRequest() ? 3 : 0;
-            }
-
-            function getSuggestedScoutSupplyPointCost(tile = selectedTile || selectedTiles.values().next().value || null) {
-                if (
-                    !isRequestBoardMode(activeBoardMode)
-                    || getActiveRequestMode() !== 'action'
-                    || getSelectedActionType() !== 'scout'
-                    || !expeditionTeam
-                    || !tile
-                ) {
-                    return 0;
+            function getSupplyPointQuote(tile = selectedTile || selectedTiles.values().next().value || null) {
+                if (!isRequestBoardMode(activeBoardMode)) {
+                    return null;
                 }
 
-                const liveTile = getLiveTileById(tile.id) || tile;
-                if ([liveTile.marker, liveTile.secondaryMarker].includes(expeditionTeam)) {
-                    return 0;
+                const costs = getSupplyPointCosts();
+                if (getActiveRequestMode() === 'movement') {
+                    const movementType = getSelectedMovementType();
+                    const distance = getPendingMovementDistance();
+                    return distance > 0
+                        ? { key: movementType, cost: distance * costs[movementType] }
+                        : null;
                 }
 
-                const scoutDistance = getNearestLiveTeamTileDistance(
-                    liveTile,
-                    expeditionTeam,
-                    { excludeTileId: liveTile.id }
-                );
-
-                return Number.isFinite(scoutDistance) ? scoutDistance : 0;
-            }
-
-            function syncSuggestedMovementSupplyPointCost(force = false) {
-                if (!requestSupplyPointCostInput) {
-                    return;
+                if (getActiveRequestMode() !== 'action') {
+                    return null;
                 }
 
-                const suggestedCost = getSuggestedMovementSupplyPointCost();
-                const previousSuggestedCost = normalizeSupplyPointValue(requestSupplyPointCostInput.dataset.suggestedCost);
-                const currentCost = normalizeSupplyPointValue(requestSupplyPointCostInput.value);
-                const isManualOverride = requestSupplyPointCostInput.dataset.manualOverride === 'true';
-
-                if (force || !isManualOverride || currentCost === previousSuggestedCost) {
-                    requestSupplyPointCostInput.value = String(normalizeSupplyPointValue(suggestedCost));
-                    requestSupplyPointCostInput.dataset.manualOverride = 'false';
+                const actionType = getSelectedActionType();
+                if (actionType === 'search'
+                    || (actionType === 'encamp' && hasPendingEncampRequest())
+                    || (actionType === 'demolish' && hasPendingDemolishRequest())) {
+                    return { key: actionType, cost: costs[actionType] };
                 }
 
-                requestSupplyPointCostInput.dataset.suggestedCost = String(normalizeSupplyPointValue(suggestedCost));
-            }
-
-            function syncSuggestedEncampSupplyPointCost(force = false) {
-                if (!requestSupplyPointCostInput) {
-                    return;
-                }
-
-                const suggestedCost = getSuggestedEncampSupplyPointCost();
-                const previousSuggestedCost = normalizeSupplyPointValue(requestSupplyPointCostInput.dataset.suggestedCost);
-                const currentCost = normalizeSupplyPointValue(requestSupplyPointCostInput.value);
-                const isManualOverride = requestSupplyPointCostInput.dataset.manualOverride === 'true';
-
-                if (force || !isManualOverride || currentCost === previousSuggestedCost) {
-                    requestSupplyPointCostInput.value = String(normalizeSupplyPointValue(suggestedCost));
-                    requestSupplyPointCostInput.dataset.manualOverride = 'false';
-                }
-
-                requestSupplyPointCostInput.dataset.suggestedCost = String(normalizeSupplyPointValue(suggestedCost));
-            }
-
-            function syncSuggestedDemolishSupplyPointCost(force = false) {
-                if (!requestSupplyPointCostInput) {
-                    return;
-                }
-
-                const suggestedCost = getSuggestedDemolishSupplyPointCost();
-                const previousSuggestedCost = normalizeSupplyPointValue(requestSupplyPointCostInput.dataset.suggestedCost);
-                const currentCost = normalizeSupplyPointValue(requestSupplyPointCostInput.value);
-                const isManualOverride = requestSupplyPointCostInput.dataset.manualOverride === 'true';
-
-                if (force || !isManualOverride || currentCost === previousSuggestedCost) {
-                    requestSupplyPointCostInput.value = String(normalizeSupplyPointValue(suggestedCost));
-                    requestSupplyPointCostInput.dataset.manualOverride = 'false';
-                }
-
-                requestSupplyPointCostInput.dataset.suggestedCost = String(normalizeSupplyPointValue(suggestedCost));
-            }
-
-            function syncSuggestedScoutSupplyPointCost(tile = selectedTile || selectedTiles.values().next().value || null) {
-                if (!requestSupplyPointCostInput || !tile) {
-                    return;
-                }
-
-                const suggestedCost = getSuggestedScoutSupplyPointCost(tile);
-                const previousSuggestedCost = normalizeSupplyPointValue(requestSupplyPointCostInput.dataset.suggestedCost);
-                const currentCost = normalizeSupplyPointValue(requestSupplyPointCostInput.value);
-                const isManualOverride = requestSupplyPointCostInput.dataset.manualOverride === 'true';
-                const nextSourceKey = `scout:${tile.id}`;
-                const sourceChanged = requestSupplyPointCostInput.dataset.sourceKey !== nextSourceKey;
-
-                if (sourceChanged || !isManualOverride || currentCost === previousSuggestedCost) {
-                    requestSupplyPointCostInput.value = String(normalizeSupplyPointValue(suggestedCost));
-                    requestSupplyPointCostInput.dataset.manualOverride = 'false';
-                }
-
-                requestSupplyPointCostInput.dataset.suggestedCost = String(normalizeSupplyPointValue(suggestedCost));
-                requestSupplyPointCostInput.dataset.sourceKey = nextSourceKey;
-            }
-
-            function getSuggestedCommentSensitiveSupplyPointCost(changeSet = null) {
-                const normalizedRequestType = String(changeSet?.requestType || getActiveRequestMode() || '').toLowerCase();
-                if (normalizedRequestType === 'movement') {
-                    return getSuggestedMovementSupplyPointCost();
-                }
-
-                if (normalizedRequestType === 'action') {
-                    const actionType = changeSet?.actionType
-                        ? normalizeActionType(changeSet.actionType)
-                        : getSelectedActionType();
-                    if (actionType === 'encamp') {
-                        return getSuggestedEncampSupplyPointCost();
-                    }
-                    if (actionType === 'demolish') {
-                        return getSuggestedDemolishSupplyPointCost();
-                    }
-                    if (actionType === 'scout' && hasPendingScoutRequest()) {
-                        return getSuggestedScoutSupplyPointCost();
+                if (actionType === 'scout' && expeditionTeam && tile) {
+                    const liveTile = getLiveTileById(tile.id) || tile;
+                    if (![liveTile.marker, liveTile.secondaryMarker].includes(expeditionTeam)) {
+                        const distance = getNearestLiveTeamTileDistance(liveTile, expeditionTeam, { excludeTileId: liveTile.id });
+                        if (Number.isFinite(distance) && distance > 0) {
+                            return { key: `scout:${tile.id}`, cost: distance * costs.scout };
+                        }
                     }
                 }
 
-                return 0;
+                return null;
+            }
+
+            function syncSuggestedSupplyPointCost(quote) {
+                const key = quote?.key || '';
+                const cost = quote?.cost ?? 0;
+                const { dataset } = requestSupplyPointCostInput;
+                if (!quote || dataset.sourceKey !== key || dataset.manualOverride !== 'true') {
+                    requestSupplyPointCostInput.value = String(cost);
+                    dataset.manualOverride = 'false';
+                }
+                dataset.sourceKey = key;
+                dataset.suggestedCost = String(cost);
             }
 
             function changeSetRequiresRequestComment(changeSet) {
                 const normalizedChangeSet = changeSet || buildChangeSetPayload();
-                const requiresCustomMovementCostComment = (
-                    getSuggestedCommentSensitiveSupplyPointCost(normalizedChangeSet) > 0
-                    && normalizeSupplyPointValue(normalizedChangeSet.supplyPointsCost) !== normalizeSupplyPointValue(getSuggestedCommentSensitiveSupplyPointCost(normalizedChangeSet))
+                const supplyPointQuote = getSupplyPointQuote();
+                const requiresCustomCostComment = (
+                    supplyPointQuote !== null
+                    && supplyPointQuote.key !== 'search'
+                    && (normalizedChangeSet.actionType !== 'scout' || hasPendingScoutRequest())
+                    && normalizeTeamPointValue(normalizedChangeSet.supplyPointsCost) !== supplyPointQuote.cost
                 );
                 const isResupplySupplyGain = (
                     normalizedChangeSet.requestType === 'action'
@@ -3486,8 +3368,17 @@
                     || Boolean(normalizedChangeSet.locationNumberOverride)
                     || (normalizeSupplyPointValue(normalizedChangeSet.supplyPointsGain) > 0 && !isResupplySupplyGain)
                     || normalizeTeamPointValue(normalizedChangeSet.campaignPointsGain) > 0
-                    || requiresCustomMovementCostComment
+                    || requiresCustomCostComment
                 );
+            }
+
+            function getMovementLimit() {
+                const limit = liveMapData?.movementLimit;
+                return Number.isSafeInteger(limit) && limit >= 0 ? limit : DEFAULT_MOVEMENT_LIMIT;
+            }
+
+            function exceedsMovementLimit(distance) {
+                return Number.isFinite(distance) && distance > getMovementLimit();
             }
 
             function pendingManoeuvreDistanceOverrideRequired() {
@@ -3505,7 +3396,7 @@
                     return false;
                 }
 
-                return getSuggestedMovementSupplyPointCost() > 3;
+                return exceedsMovementLimit(getPendingMovementDistance());
             }
 
             function getEditorLocationTileType() {
@@ -3623,7 +3514,7 @@
 
             function adjustTeamPointValue(currentValue, delta) {
                 const nextValue = normalizeTeamPointValue(currentValue) + Number(delta || 0);
-                return Math.max(0, nextValue);
+                return Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, nextValue));
             }
 
             function adjustSupplyPointValue(currentValue, delta) {
@@ -3662,6 +3553,7 @@
                 const currentTeamSupplyPoints = normalizeSupplyPointValue(
                     liveMapData?.teamStats?.[normalizeMarker(expeditionTeam)]?.supplyPoints
                 );
+                const { rollMin, rollMax, reward } = getResupplyDetails(tile);
 
                 return [
                     tile.id,
@@ -3672,6 +3564,9 @@
                     currentTeamSupplyPoints,
                     liveTile.marker || '',
                     liveTile.secondaryMarker || '',
+                    rollMin,
+                    rollMax,
+                    reward,
                 ].join('|');
             }
 
@@ -3707,8 +3602,9 @@
                     };
                 }
 
+                const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
                 if (liveTile.structure === 'base' && liveTile.structureColor === assignedTeam) {
-                    const reward = Math.max(0, 10 - currentTeamSupplyPoints);
+                    const reward = Math.max(0, rewards.baseTarget - currentTeamSupplyPoints);
                     return {
                         eligible: true,
                         requiresRoll: false,
@@ -3716,8 +3612,8 @@
                         rollMin: 0,
                         rollMax: 0,
                         helpText: reward > 0
-                            ? 'Resupply at one of your bases fills your supply points to 10.'
-                            : 'Your team already has 10 supply points.',
+                            ? `Resupply at one of your bases fills your supply points to ${rewards.baseTarget}.`
+                            : `Your team has reached the base resupply target of ${rewards.baseTarget} supply points.`,
                     };
                 }
 
@@ -3726,9 +3622,9 @@
                         eligible: true,
                         requiresRoll: true,
                         reward: 0,
-                        rollMin: 4,
-                        rollMax: 6,
-                        helpText: 'Resupply at one of your camps rolls 4-6 supply points.',
+                        rollMin: rewards.ownCampMin,
+                        rollMax: rewards.ownCampMax,
+                        helpText: `Resupply at one of your camps rolls ${rewards.ownCampMin}–${rewards.ownCampMax} supply points.`,
                     };
                 }
 
@@ -3737,24 +3633,50 @@
                         eligible: true,
                         requiresRoll: true,
                         reward: 0,
-                        rollMin: 1,
-                        rollMax: 3,
-                        helpText: 'Resupply at another team\'s camp rolls 1-3 supply points.',
+                        rollMin: rewards.otherCampMin,
+                        rollMax: rewards.otherCampMax,
+                        helpText: `Resupply at another team's camp rolls ${rewards.otherCampMin}–${rewards.otherCampMax} supply points.`,
                     };
                 }
 
                 return {
                     eligible: true,
                     requiresRoll: false,
-                    reward: 1,
+                    reward: rewards.otherHexSupply,
                     rollMin: 0,
                     rollMax: 0,
-                    helpText: 'Resupply on any other hex grants 1 supply point.',
+                    helpText: `Resupply on any other hex grants ${rewards.otherHexSupply} supply point${rewards.otherHexSupply === 1 ? '' : 's'}.`,
                 };
             }
 
             function getPreparedResupplyPoints() {
                 return resupplyActionPrepared ? normalizeSupplyPointValue(resupplyActionPoints) : 0;
+            }
+
+            function syncRewardDefault(input, source, amount) {
+                const { dataset } = input;
+                const nextValue = String(amount);
+                if (dataset.rewardSource !== source || input.value === dataset.rewardDefault) {
+                    input.value = nextValue;
+                }
+                dataset.rewardSource = source;
+                dataset.rewardDefault = nextValue;
+            }
+
+            function syncRequestRewardDefaults(source, isResupply) {
+                if (!source) {
+                    if (!isResupply || !resupplyAmountOverrideInput?.checked) {
+                        requestSupplyPointsInput.value = String(isResupply ? getPreparedResupplyPoints() : 0);
+                    }
+                    requestCampaignPointsInput.value = '0';
+                    requestSupplyPointsInput.dataset.rewardSource = '';
+                    requestCampaignPointsInput.dataset.rewardSource = '';
+                    return;
+                }
+
+                const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
+                syncRewardDefault(requestSupplyPointsInput, source, rewards[`${source}Supply`]);
+                syncRewardDefault(requestCampaignPointsInput, source, rewards[`${source}Campaign`]);
             }
 
             function handleResupplyAction() {
@@ -3898,21 +3820,6 @@
                     .replaceAll("'", '&#039;');
             }
 
-            function formatSiteRoleLabel(siteRole) {
-                const normalizedRole = String(siteRole || 'user').toLowerCase();
-                return normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
-            }
-
-            function formatExpeditionRoleLabel(expeditionRole) {
-                const labels = {
-                    viewer: 'Viewer',
-                    traveler: 'Traveler',
-                    admin: 'Admin',
-                    owner: 'Owner',
-                };
-                return labels[String(expeditionRole || '').toLowerCase()] || 'Viewer';
-            }
-
             function formatExpeditionTeamLabel(team) {
                 return MARKER_LABELS[String(team || '').toLowerCase()] || 'No Team';
             }
@@ -3961,21 +3868,6 @@
                     <span>${escapeHtml(formatExpeditionTeamLabel(expeditionTeam))}</span>
                 `;
                 teamBanner.classList.remove('hidden');
-            }
-
-            function syncExpeditionRoundControls() {
-                if (expeditionRoundInput) {
-                    expeditionRoundInput.value = String(normalizeRoundValue(expeditionRound));
-                    expeditionRoundInput.disabled = !isAdminReviewer || isSavingExpeditionRound;
-                }
-
-                expeditionRoundField?.classList.toggle('hidden', !isAdminReviewer);
-                saveExpeditionRoundButton?.classList.toggle('hidden', !isAdminReviewer);
-
-                if (saveExpeditionRoundButton) {
-                    saveExpeditionRoundButton.disabled = !isAdminReviewer || isSavingExpeditionRound;
-                    saveExpeditionRoundButton.textContent = isSavingExpeditionRound ? 'Saving Round...' : 'Save Round';
-                }
             }
 
             function getVisibleRightPanelTeams() {
@@ -4084,20 +3976,6 @@
                 }
             }
 
-            function updateExpeditionSettingsAccessSummary() {
-                if (!expeditionSettingsAccessSummary) {
-                    return;
-                }
-
-                if (!sessionUser) {
-                    expeditionSettingsAccessSummary.textContent = 'Sign in to manage Expedition access.';
-                    return;
-                }
-
-                const username = sessionUser.username || sessionUser.email || 'Signed-in user';
-                expeditionSettingsAccessSummary.textContent = `${username} currently has Expedition ${formatExpeditionRoleLabel(role)} access on ${formatExpeditionTeamLabel(expeditionTeam)}.`;
-            }
-
             function syncTeamStatsSectionVisibility() {
                 if (teamStatsSectionBody) {
                     teamStatsSectionBody.classList.toggle('hidden', isTeamStatsSectionCollapsed);
@@ -4115,51 +3993,107 @@
                 syncTeamStatsSectionVisibility();
             }
 
-            async function saveExpeditionRound() {
-                if (!isAdminReviewer || !liveMapData || !expeditionRoundInput || isSavingExpeditionRound) {
+            function renderExpeditionSupplyCosts() {
+                expeditionSupplyCostsForm.classList.toggle('hidden', !isAdminReviewer);
+                for (const [action, cost] of Object.entries(getSupplyPointCosts())) {
+                    expeditionSupplyCostsForm.elements.namedItem(action).value = String(cost);
+                }
+            }
+
+            function renderExpeditionMovementLimit() {
+                expeditionMovementLimitForm.classList.toggle('hidden', !isAdminReviewer);
+                expeditionMovementLimitInput.value = String(getMovementLimit());
+            }
+
+            function renderExpeditionPointRewards() {
+                expeditionPointRewardsForm.classList.toggle('hidden', !isAdminReviewer);
+                const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
+                expeditionPointRewardFields.innerHTML = ExpeditionPointRewards.mapGroups.map(([title, fields]) => `
+                    <fieldset class="settings-supply-costs">
+                        <legend>${title}</legend>
+                        ${fields.map(([key, label, , max]) => `
+                            <label>${label}
+                                <input name="${key}" type="number" min="0" max="${max ?? Number.MAX_SAFE_INTEGER}" step="1" value="${rewards[key]}" required>
+                            </label>
+                        `).join('')}
+                    </fieldset>
+                `).join('');
+            }
+
+            function saveExpeditionPointRewards(event) {
+                const pointRewards = Object.fromEntries(
+                    [...new FormData(expeditionPointRewardsForm)].map(([key, value]) => [key, Number(value)])
+                );
+                return saveExpeditionRequestSetting(event, {
+                    route: '/expedition/point-rewards',
+                    field: 'pointRewards',
+                    value: pointRewards,
+                    label: 'Point rewards',
+                    input: expeditionPointRewardFields,
+                    button: saveExpeditionPointRewardsButton,
+                    render: renderExpeditionPointRewards,
+                });
+            }
+
+            function saveExpeditionMovementLimit(event) {
+                const movementLimit = expeditionMovementLimitInput.valueAsNumber;
+                return saveExpeditionRequestSetting(event, {
+                    route: '/expedition/movement-limit',
+                    field: 'movementLimit',
+                    value: movementLimit,
+                    label: 'Movement limit',
+                    input: expeditionMovementLimitInput,
+                    button: saveExpeditionMovementLimitButton,
+                    render: renderExpeditionMovementLimit,
+                });
+            }
+
+            function saveExpeditionSupplyCosts(event) {
+                const supplyPointCosts = Object.fromEntries(
+                    Object.keys(DEFAULT_SUPPLY_POINT_COSTS).map(action => [
+                        action, expeditionSupplyCostsForm.elements.namedItem(action).valueAsNumber,
+                    ])
+                );
+                return saveExpeditionRequestSetting(event, {
+                    route: '/expedition/supply-point-costs',
+                    field: 'supplyPointCosts',
+                    value: supplyPointCosts,
+                    label: 'Supply Point costs',
+                    input: expeditionSupplyCostsFields,
+                    button: saveExpeditionSupplyCostsButton,
+                    render: renderExpeditionSupplyCosts,
+                });
+            }
+
+            async function saveExpeditionRequestSetting(event, { route, field, value, label, input, button, render }) {
+                event.preventDefault();
+                if (!isAdminReviewer || !liveMapData || button.disabled) {
                     return;
                 }
 
-                const nextRound = normalizeRoundValue(expeditionRoundInput.value);
-                isSavingExpeditionRound = true;
-                expeditionRound = nextRound;
-                renderRoundBanner();
-                syncExpeditionRoundControls();
+                input.disabled = true;
+                button.disabled = true;
                 setExpeditionSettingsStatus('', '');
-
                 try {
-                    const { response, payload } = await fetchJson('/expedition/map', {
+                    const { response, payload } = await fetchJson(route, {
                         method: 'POST',
-                        body: JSON.stringify({
-                            map: {
-                                ...cloneMapData(liveMapData),
-                                round: nextRound,
-                            },
-                        }),
+                        body: JSON.stringify({ [field]: value }),
                     });
 
-                    if (!response.ok) {
-                        expeditionRound = normalizeRoundValue(liveMapData?.round);
-                        renderRoundBanner();
-                        syncExpeditionRoundControls();
-                        setExpeditionSettingsStatus('error', payload.message || 'Unable to save the Expedition round right now.');
+                    if (!response.ok || payload[field] == null) {
+                        setExpeditionSettingsStatus('error', payload.message || `Unable to save ${label.toLowerCase()} right now.`);
                         return;
                     }
 
-                    if (payload.map) {
-                        liveMapData = cloneMapData(payload.map);
-                        applyMapData(payload.map);
-                    }
-
-                    setExpeditionSettingsStatus('success', payload.message || 'Expedition round saved.');
+                    liveMapData[field] = payload[field];
+                    render();
+                    syncConditionalEditorFields();
+                    setExpeditionSettingsStatus('success', payload.message || `${label} saved.`);
                 } catch (_error) {
-                    expeditionRound = normalizeRoundValue(liveMapData?.round);
-                    renderRoundBanner();
-                    syncExpeditionRoundControls();
                     setExpeditionSettingsStatus('error', 'Unable to reach the server right now.');
                 } finally {
-                    isSavingExpeditionRound = false;
-                    syncExpeditionRoundControls();
+                    input.disabled = false;
+                    button.disabled = false;
                 }
             }
 
@@ -4181,188 +4115,16 @@
                 expeditionSettingsStatus.classList.add(type);
             }
 
-            function renderExpeditionRoleList() {
-                if (!expeditionSettingsRoleList) {
-                    return;
-                }
-
-                if (!expeditionPatrons.length) {
-                    expeditionSettingsRoleList.innerHTML = '<div class="helper-text">No Expedition members found.</div>';
-                    return;
-                }
-
-                expeditionSettingsRoleList.innerHTML = expeditionPatrons.map((patron) => {
-                    const displayName = escapeHtml(patron.username || patron.email || 'Unnamed user');
-                    const email = escapeHtml(patron.email || '');
-                    const expeditionRoleLabel = formatExpeditionRoleLabel(patron.expeditionRole);
-                    const siteRoleLabel = formatSiteRoleLabel(patron.siteRole);
-                    const teamLabel = formatExpeditionTeamLabel(patron.expeditionTeam);
-                    const roleControl = patron.canEditExpeditionRole
-                        ? `
-                            <div>
-                                <label class="settings-role-control-label" for="expedition-role-${patron.id}">Access</label>
-                                <select id="expedition-role-${patron.id}" class="settings-role-select" data-expedition-role-user-id="${patron.id}" ${isLoadingExpeditionRoleList ? 'disabled' : ''}>
-                                    <option value="viewer" ${patron.expeditionMembershipRole === 'viewer' ? 'selected' : ''}>Viewer</option>
-                                    <option value="traveler" ${patron.expeditionMembershipRole === 'traveler' ? 'selected' : ''}>Traveler</option>
-                                    <option value="admin" ${patron.expeditionMembershipRole === 'admin' ? 'selected' : ''}>Admin</option>
-                                </select>
-                            </div>
-                        `
-                        : `
-                            <div>
-                                <label class="settings-role-control-label" for="expedition-role-${patron.id}">Access</label>
-                                <select id="expedition-role-${patron.id}" class="settings-role-select" disabled>
-                                    <option value="owner" selected>${escapeHtml(expeditionRoleLabel)}</option>
-                                </select>
-                            </div>
-                        `;
-                    const teamControl = `
-                        <div>
-                            <label class="settings-role-control-label" for="expedition-team-${patron.id}">Team</label>
-                            <select id="expedition-team-${patron.id}" class="settings-role-select" data-expedition-team-user-id="${patron.id}" ${isLoadingExpeditionRoleList ? 'disabled' : ''}>
-                                ${MARKER_OPTIONS.map((option) => `
-                                    <option value="${option.value}" ${patron.expeditionTeam === option.value ? 'selected' : ''}>${escapeHtml(option.value ? option.label : 'No Team')}</option>
-                                `).join('')}
-                            </select>
-                        </div>
-                    `;
-
-                    return `
-                        <div class="settings-role-card">
-                            <div>
-                                <h4 class="settings-role-name">${displayName}</h4>
-                                <p>${email}</p>
-                                <div class="settings-role-badges">
-                                    <span class="settings-role-badge">Site: ${escapeHtml(siteRoleLabel)}</span>
-                                    <span class="settings-role-badge">Expedition: ${escapeHtml(expeditionRoleLabel)}</span>
-                                    <span class="settings-role-badge">Team: ${escapeHtml(teamLabel)}</span>
-                                </div>
-                            </div>
-                            <div>${roleControl}</div>
-                            <div>${teamControl}</div>
-                        </div>
-                    `;
-                }).join('');
-
-                expeditionSettingsRoleList.querySelectorAll('[data-expedition-role-user-id]').forEach((select) => {
-                    select.addEventListener('change', (event) => {
-                        const targetUserId = Number(event.target.getAttribute('data-expedition-role-user-id'));
-                        const teamSelect = expeditionSettingsRoleList.querySelector(`[data-expedition-team-user-id="${targetUserId}"]`);
-                        handleExpeditionMembershipChange(targetUserId, event.target.value, teamSelect?.value || '');
-                    });
-                });
-
-                expeditionSettingsRoleList.querySelectorAll('[data-expedition-team-user-id]').forEach((select) => {
-                    select.addEventListener('change', (event) => {
-                        const targetUserId = Number(event.target.getAttribute('data-expedition-team-user-id'));
-                        const roleSelect = expeditionSettingsRoleList.querySelector(`[data-expedition-role-user-id="${targetUserId}"]`);
-                        const currentPatron = expeditionPatrons.find((patron) => patron.id === targetUserId);
-                        handleExpeditionMembershipChange(
-                            targetUserId,
-                            roleSelect?.value || currentPatron?.expeditionMembershipRole || 'viewer',
-                            event.target.value
-                        );
-                    });
-                });
-            }
-
-            function setExpeditionRoleListLoading(nextLoadingState) {
-                isLoadingExpeditionRoleList = Boolean(nextLoadingState);
-                if (refreshExpeditionRolesButton) {
-                    refreshExpeditionRolesButton.disabled = isLoadingExpeditionRoleList;
-                }
-                renderExpeditionRoleList();
-            }
-
-            async function loadExpeditionRoleList() {
-                if (!canManageExpeditionRoles) {
-                    return;
-                }
-
-                setExpeditionRoleListLoading(true);
-                setExpeditionSettingsStatus('', '');
-                if (expeditionSettingsRoleList) {
-                    expeditionSettingsRoleList.innerHTML = '<div class="helper-text">Loading Expedition members...</div>';
-                }
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/roles/list', {
-                        method: 'POST',
-                    });
-
-                    if (!response.ok) {
-                        expeditionPatrons = [];
-                        renderExpeditionRoleList();
-                        setExpeditionSettingsStatus('error', payload.message || 'Unable to load Expedition members right now.');
-                        return;
-                    }
-
-                    expeditionPatrons = Array.isArray(payload.patrons) ? payload.patrons : [];
-                    renderExpeditionRoleList();
-                } catch (_error) {
-                    expeditionPatrons = [];
-                    renderExpeditionRoleList();
-                    setExpeditionSettingsStatus('error', 'Unable to reach the server right now.');
-                } finally {
-                    setExpeditionRoleListLoading(false);
-                }
-            }
-
-            async function handleExpeditionMembershipChange(targetUserId, nextRole, nextTeam) {
-                if (!targetUserId || !canManageExpeditionRoles) {
-                    return;
-                }
-
-                setExpeditionRoleListLoading(true);
-                setExpeditionSettingsStatus('', '');
-
-                try {
-                    const { response, payload } = await fetchJson('/expedition/roles/set-role', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            targetUserId,
-                            role: nextRole,
-                            team: nextTeam,
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        setExpeditionSettingsStatus('error', payload.message || 'Unable to update Expedition access right now.');
-                        await loadExpeditionRoleList();
-                        return;
-                    }
-
-                    expeditionPatrons = expeditionPatrons.map((patron) => (
-                        patron.id === payload.patron?.id ? payload.patron : patron
-                    ));
-                    renderExpeditionRoleList();
-                    setExpeditionSettingsStatus('success', payload.message || 'Expedition access updated.');
-
-                    if (sessionUser && payload.patron?.id === sessionUser.id) {
-                        await syncSessionRole();
-                        if (isAdminReviewer) {
-                            await loadMapRequests();
-                        }
-                    }
-                } catch (_error) {
-                    setExpeditionSettingsStatus('error', 'Unable to reach the server right now.');
-                    await loadExpeditionRoleList();
-                } finally {
-                    setExpeditionRoleListLoading(false);
-                }
-            }
-
             function openExpeditionSettingsModal() {
                 if (!canManageExpeditionRoles || !expeditionSettingsModal) {
                     return;
                 }
 
                 expeditionSettingsModal.classList.remove('hidden');
-                updateExpeditionSettingsAccessSummary();
                 setExpeditionSettingsStatus('', '');
-                syncExpeditionRoundControls();
-                renderExpeditionRoleList();
-                loadExpeditionRoleList();
+                renderExpeditionMovementLimit();
+                renderExpeditionSupplyCosts();
+                renderExpeditionPointRewards();
             }
 
             function closeExpeditionSettingsModal() {
@@ -4512,7 +4274,7 @@
                         return;
                     }
 
-                    expeditionRequestHistory = Array.isArray(payload.requests) ? payload.requests : [];
+                    expeditionRequestHistory = (payload.requests || []).filter(request => request.changeSet?.requestType !== 'battle');
                     renderExpeditionRequestHistory();
                 } catch (_error) {
                     expeditionRequestHistory = [];
@@ -4847,6 +4609,9 @@
                 }
 
                 expeditionBountyModal.classList.remove('hidden');
+                const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
+                syncRewardDefault(expeditionBountySupplyRewardInput, 'bounty', rewards.bountySupply);
+                syncRewardDefault(expeditionBountyCampaignRewardInput, 'bounty', rewards.bountyCampaign);
                 renderExpeditionBountyAllowedTeamOptions();
                 renderExpeditionBounties();
                 loadExpeditionBounties();
@@ -4910,8 +4675,9 @@
 
                     if (expeditionBountyNameInput) expeditionBountyNameInput.value = '';
                     if (expeditionBountyDescriptionInput) expeditionBountyDescriptionInput.value = '';
-                    if (expeditionBountySupplyRewardInput) expeditionBountySupplyRewardInput.value = '0';
-                    if (expeditionBountyCampaignRewardInput) expeditionBountyCampaignRewardInput.value = '0';
+                    const rewards = ExpeditionPointRewards.readSettings(liveMapData?.pointRewards);
+                    expeditionBountySupplyRewardInput.value = String(rewards.bountySupply);
+                    expeditionBountyCampaignRewardInput.value = String(rewards.bountyCampaign);
                     if (expeditionBountyMaxClaimantsInput) expeditionBountyMaxClaimantsInput.value = '1';
                     if (expeditionBountyProgressMaxInput) expeditionBountyProgressMaxInput.value = '0';
                     clearSelectedExpeditionBountyAllowedTeams();
@@ -5095,7 +4861,6 @@
                 isAdminReviewer = role === 'admin' || role === 'owner';
                 isTravelerEditor = role === 'traveler';
                 renderTeamBanner();
-                syncExpeditionRoundControls();
                 if (isAdminReviewer) {
                     activeBoardMode = isRequestBoardMode(activeBoardMode) ? activeBoardMode : 'admin';
                 } else if (isTravelerEditor) {
@@ -5136,7 +4901,6 @@
                 }
                 saveTeamStatsButton?.classList.toggle('hidden', !isAdminReviewer);
                 syncBattleOpponentOptions();
-                updateExpeditionSettingsAccessSummary();
                 renderTeamStatistics();
                 initializeMode();
             }
@@ -5261,20 +5025,16 @@
 
                 [
                     movementModeButton,
-                    battleModeButton,
                     actionModeButton,
                     adminMovementModeButton,
-                    adminBattleModeButton,
                     adminActionModeButton,
                 ].forEach((button) => {
                     button?.classList.toggle('hidden', !canUseRequestMode());
                 });
 
                 movementModeButton?.classList.toggle('active-mode', isMovementRequest);
-                battleModeButton?.classList.toggle('active-mode', isBattleRequest);
                 actionModeButton?.classList.toggle('active-mode', isActionRequest);
                 adminMovementModeButton?.classList.toggle('active-mode', isMovementRequest);
-                adminBattleModeButton?.classList.toggle('active-mode', isBattleRequest);
                 adminActionModeButton?.classList.toggle('active-mode', isActionRequest);
 
                 if (adminModeButton) {
@@ -5415,6 +5175,7 @@
                 }
                 if (requestSupplyPointsInput) {
                     requestSupplyPointsInput.value = '0';
+                    requestSupplyPointsInput.dataset.rewardSource = '';
                 }
                 if (requestSupplyPointCostInput) {
                     requestSupplyPointCostInput.value = '0';
@@ -5423,6 +5184,7 @@
                 }
                 if (requestCampaignPointsInput) {
                     requestCampaignPointsInput.value = '0';
+                    requestCampaignPointsInput.dataset.rewardSource = '';
                 }
                 if (resupplyAmountOverrideInput) {
                     resupplyAmountOverrideInput.checked = false;
@@ -5790,9 +5552,6 @@
                     tileStructureInput.value = tile.structure;
                     tileStructureColorInput.value = tile.structureColor;
                     syncConditionalEditorFields();
-                    if (isActionRequestMode(getActiveRequestMode()) && getSelectedActionType() === 'scout') {
-                        syncSuggestedScoutSupplyPointCost(tile);
-                    }
                 }
 
                 const locationDetails = getLocationDetails(tile.type, tile.locationNumber);
@@ -5913,7 +5672,7 @@
                     const hasResupplyAmountOverride = Boolean(resupplyAmountOverrideInput?.checked);
                     if (
                         !hasResupplyAmountOverride
-                        && (!resupplyActionPrepared || (resupplyDetails.requiresRoll && !resupplyActionRolled) || getPreparedResupplyPoints() <= 0)
+                        && (!resupplyActionPrepared || (resupplyDetails.requiresRoll && !resupplyActionRolled))
                     ) {
                         setSaveStatus('error', resupplyDetails.requiresRoll
                             ? 'Press Roll Resupply before submitting the request.'
@@ -6008,11 +5767,9 @@
                         expeditionTeam,
                         { excludeTileId: primarySelectedTile.id }
                     );
-                    if (Number.isFinite(manoeuvreDistance) && manoeuvreDistance > 3) {
-                        if (!campLocationOverrideInput?.checked) {
-                            setSaveStatus('error', 'Moves farther than 3 tiles require the manoeuvre distance override.');
-                            return false;
-                        }
+                    if (exceedsMovementLimit(manoeuvreDistance) && !campLocationOverrideInput?.checked) {
+                        setSaveStatus('error', `Moves past the ${getMovementLimit()}-hex limit require the manoeuvre distance override.`);
+                        return false;
                     }
                 }
 
@@ -6180,6 +5937,7 @@
                     requesterTeam: normalizeMarker(editingRequestRequesterTeam || expeditionTeam),
                     comment: requestCommentInput?.value.trim() || '',
                     resupplyAmountOverride: isResupplyRequest && Boolean(resupplyAmountOverrideInput?.checked),
+                    resupplyPrepared: isResupplyRequest && resupplyActionPrepared,
                     locationNumberOverride: Boolean(locationNumberOverrideInput?.checked),
                     battleType: normalizeBattleType(battleTypeInput?.value),
                     battleSide: normalizeBattleSide(battleSideInput?.value),
@@ -6261,7 +6019,6 @@
                 });
 
                 renderRoundBanner();
-                syncExpeditionRoundControls();
                 renderTeamStatistics();
                 renderPanel(selectedTile);
             }
@@ -6311,67 +6068,10 @@
                 };
 
                 if (String(changeSet?.requestType || '').toLowerCase() === 'battle') {
-                    const requesterTeam = normalizeMarker(changeSet?.requesterTeam || expeditionTeam);
-                    const opponentTeam = normalizeBattleOpponent(changeSet?.battleOpponent);
-                    const requesterWon = normalizeBattleResult(changeSet?.battleResult) === 'won';
-                    const requesterLost = normalizeBattleResult(changeSet?.battleResult) === 'lost';
-                    const battleDraw = normalizeBattleResult(changeSet?.battleResult) === 'draw';
-                    const compoundWinner = normalizeBattleResult(changeSet?.battleResult);
-                    const requesterBattleSide = normalizeBattleSide(changeSet?.battleSide);
-                    const battleType = normalizeBattleType(changeSet?.battleType);
-
-                    if (battleType === 'standard') {
-                        if (requesterWon) {
-                            awardExpeditionTeamPoints(requesterTeam, 'campaignPoints', 2);
-                            awardExpeditionTeamPoints(opponentTeam, 'supplyPoints', 1);
-                        } else if (battleDraw) {
-                            awardExpeditionTeamPoints(requesterTeam, 'supplyPoints', 1);
-                            awardExpeditionTeamPoints(opponentTeam, 'supplyPoints', 1);
-                        } else if (requesterLost) {
-                            awardExpeditionTeamPoints(requesterTeam, 'supplyPoints', 1);
-                        }
-                    } else if (battleType === 'joint-op') {
-                        awardExpeditionTeamPoints(requesterTeam, 'campaignPoints', 1);
-                        awardExpeditionTeamPoints(opponentTeam, 'campaignPoints', 1);
-                    } else if (battleType === 'adversary-op') {
-                        if (requesterWon) {
-                            awardExpeditionTeamPoints(requesterTeam, 'campaignPoints', 3);
-                            awardExpeditionTeamPoints(opponentTeam, 'supplyPoints', 2);
-                        } else if (battleDraw) {
-                            awardExpeditionTeamPoints(requesterTeam, 'supplyPoints', 2);
-                            awardExpeditionTeamPoints(opponentTeam, 'supplyPoints', 2);
-                        } else if (requesterLost) {
-                            awardExpeditionTeamPoints(opponentTeam, 'campaignPoints', 3);
-                            awardExpeditionTeamPoints(requesterTeam, 'supplyPoints', 2);
-                        }
-                    } else if (battleType === 'compound-op') {
-                        const defenderTeam = requesterBattleSide === 'defender'
-                            ? requesterTeam
-                            : opponentTeam;
-                        if (compoundWinner === 'draw') {
-                            awardExpeditionTeamPoints(requesterTeam, 'supplyPoints', 1);
-                            awardExpeditionTeamPoints(opponentTeam, 'supplyPoints', 1);
-                        } else if (compoundWinner === 'defender') {
-                            awardExpeditionTeamPoints(defenderTeam, 'campaignPoints', 2);
-                            awardExpeditionTeamPoints(defenderTeam, 'supplyPoints', 3);
-                        }
-                    } else if (battleType === 'multiplayer-op') {
-                        const multiplayerOpponents = normalizeBattleOpponents(changeSet?.battleOpponents);
-                        const multiplayerParticipants = [
-                            requesterTeam,
-                            ...multiplayerOpponents,
-                        ].filter((team, index, teams) => team && teams.indexOf(team) === index);
-                        const winnerTeams = normalizeBattleWinners(changeSet?.battleWinners);
-
-                        multiplayerParticipants.forEach((participantTeam) => {
-                            awardExpeditionTeamPoints(
-                                participantTeam,
-                                winnerTeams.includes(participantTeam)
-                                    ? 'campaignPoints'
-                                    : 'supplyPoints',
-                                winnerTeams.includes(participantTeam) ? multiplayerParticipants.length : 2
-                            );
-                        });
+                    const battle = { ...changeSet, requesterTeam: changeSet.requesterTeam || expeditionTeam };
+                    const teams = EXPEDITION_TEAMS.map(({ value }) => value);
+                    for (const [team, field, amount] of ExpeditionPointRewards.battleAwards(battle, mapData.pointRewards, teams)) {
+                        awardExpeditionTeamPoints(team, field, amount);
                     }
                 }
 
@@ -6535,27 +6235,6 @@
                 if (requestCommentInput) {
                     requestCommentInput.value = String(changeSet.comment || '');
                 }
-                if (requestSupplyPointsInput) {
-                    requestSupplyPointsInput.value = String(normalizeSupplyPointValue(changeSet.supplyPointsGain));
-                }
-                if (activeBoardMode === 'action' && normalizeActionType(changeSet.actionType) === 'resupply') {
-                    resupplyActionPrepared = normalizeSupplyPointValue(changeSet.supplyPointsGain) > 0;
-                    resupplyActionRolled = resupplyActionPrepared;
-                    resupplyActionPoints = normalizeSupplyPointValue(changeSet.supplyPointsGain);
-                } else {
-                    resetPendingResupplyAction();
-                }
-                if (requestSupplyPointCostInput) {
-                    requestSupplyPointCostInput.value = String(normalizeSupplyPointValue(changeSet.supplyPointsCost));
-                    requestSupplyPointCostInput.dataset.manualOverride = 'true';
-                    requestSupplyPointCostInput.dataset.suggestedCost = String(normalizeSupplyPointValue(changeSet.supplyPointsCost));
-                }
-                if (requestCampaignPointsInput) {
-                    requestCampaignPointsInput.value = String(normalizeTeamPointValue(changeSet.campaignPointsGain));
-                }
-                if (resupplyAmountOverrideInput) {
-                    resupplyAmountOverrideInput.checked = Boolean(changeSet.resupplyAmountOverride);
-                }
                 if (campLocationOverrideInput) {
                     campLocationOverrideInput.checked = Boolean(changeSet.campLocationOverride);
                 }
@@ -6614,18 +6293,29 @@
                         ? tiles.find((tile) => tile.id === changeSet.battleLocation) || null
                         : null);
 
-                if (activeBoardMode === 'action' && normalizeActionType(changeSet.actionType) === 'resupply') {
-                    resupplyActionSourceKey = getResupplySourceKey(selectedTile);
-                }
-
                 if (selectedTile && selectedTiles.size === 0) {
                     selectedTile.el.classList.add('selected');
                     selectedTiles.add(selectedTile);
                 }
 
                 renderPanel(selectedTile);
+                if (activeBoardMode === 'action' && normalizeActionType(changeSet.actionType) === 'resupply') {
+                    resupplyActionPoints = normalizeSupplyPointValue(changeSet.supplyPointsGain);
+                    resupplyActionPrepared = Boolean(changeSet.resupplyPrepared) || resupplyActionPoints > 0;
+                    resupplyActionRolled = resupplyActionPrepared;
+                    resupplyActionSourceKey = getResupplySourceKey(selectedTile);
+                    resupplyAmountOverrideInput.checked = Boolean(changeSet.resupplyAmountOverride);
+                }
+                requestSupplyPointsInput.value = String(normalizeSupplyPointValue(changeSet.supplyPointsGain));
+                requestCampaignPointsInput.value = String(normalizeTeamPointValue(changeSet.campaignPointsGain));
                 if (locationNumberOverrideInput) {
                     locationNumberOverrideInput.checked = Boolean(changeSet.locationNumberOverride);
+                }
+                const supplyPointQuote = getSupplyPointQuote();
+                if (supplyPointQuote && !requestSupplyPointCostField.classList.contains('hidden')) {
+                    const savedCost = normalizeTeamPointValue(changeSet.supplyPointsCost);
+                    requestSupplyPointCostInput.value = String(savedCost);
+                    requestSupplyPointCostInput.dataset.manualOverride = String(savedCost !== supplyPointQuote.cost);
                 }
                 syncConditionalEditorFields();
                 setSaveStatus('success', `Editing pending request #${request.id}. Submit when you're ready to save changes.`);
@@ -6669,7 +6359,7 @@
                         return;
                     }
 
-                    myPendingRequests = Array.isArray(payload.requests) ? payload.requests : [];
+                    myPendingRequests = (payload.requests || []).filter(request => request.changeSet?.requestType !== 'battle');
                     renderMyPendingRequests();
                 } catch (_error) {
                     myPendingRequests = [];
@@ -6799,7 +6489,7 @@
                         return;
                     }
 
-                    pendingRequests = Array.isArray(payload.requests) ? payload.requests : [];
+                    pendingRequests = (payload.requests || []).filter(request => request.changeSet?.requestType !== 'battle');
                     renderRequestList();
                 } catch (error) {
                     pendingRequests = [];
@@ -7022,7 +6712,7 @@
                 const requesterTeamStats = normalizeExpeditionTeamStats(
                     liveMapData?.teamStats || expeditionTeamStats
                 )[normalizeMarker(changeSet.requesterTeam || expeditionTeam)] || { supplyPoints: 0, campaignPoints: 0 };
-                if (normalizeSupplyPointValue(changeSet.supplyPointsCost) > normalizeSupplyPointValue(requesterTeamStats.supplyPoints)) {
+                if (normalizeTeamPointValue(changeSet.supplyPointsCost) > normalizeSupplyPointValue(requesterTeamStats.supplyPoints)) {
                     setSaveStatus('error', 'You cannot spend more supply points than your team currently has.');
                     return;
                 }
@@ -7063,7 +6753,8 @@
                 ) {
                     setSaveStatus('error', 'A request comment is required when overriding a rolled location number, using a manoeuvre override, overriding a resupply amount, requesting non-resupply supply/campaign points, or changing the default supply point cost.');
                     return;
-                } else if (changeSet.requestType === 'action' && changeSet.actionType === 'resupply' && normalizeTeamPointValue(changeSet.supplyPointsGain) <= 0) {
+                } else if (changeSet.requestType === 'action' && changeSet.actionType === 'resupply'
+                    && (changeSet.resupplyAmountOverride ? changeSet.supplyPointsGain <= 0 : !changeSet.resupplyPrepared)) {
                     setSaveStatus('error', changeSet.resupplyAmountOverride
                         ? 'Enter a resupply amount before submitting the request.'
                         : 'Prepare your resupply reward before submitting the request.');
@@ -7071,25 +6762,25 @@
                 } else if (changeSet.requestType === 'movement' && changeSet.movementType === 'hold') {
                     // Hold is a no-op movement request by design.
                 } else if (changeSet.changes.length === 0) {
-                    if (
+                    const isPointOnlyRequest = (
                         (
                             (changeSet.requestType === 'movement' && changeSet.movementType === 'manoeuvre')
                             || (changeSet.requestType === 'action' && ['search', 'resupply'].includes(changeSet.actionType))
                         )
                         && (
-                            normalizeTeamPointValue(changeSet.supplyPointsGain) > 0
+                            changeSet.resupplyPrepared
+                            || normalizeTeamPointValue(changeSet.supplyPointsGain) > 0
                             || normalizeTeamPointValue(changeSet.campaignPointsGain) > 0
                             || normalizeTeamPointValue(changeSet.supplyPointsCost) > 0
                         )
-                    ) {
-                        // Point-only request is valid for manoeuvre/search.
-                    } else
-                    if (changeSet.requestType === 'action' && ['encamp', 'demolish'].includes(changeSet.actionType)) {
-                        setSaveStatus('error', `${changeSet.actionType === 'encamp' ? 'Create Camp' : 'Destroy Camp'} before submitting your request.`);
+                    );
+                    if (!isPointOnlyRequest) {
+                        const campAction = changeSet.requestType === 'action' && ['encamp', 'demolish'].includes(changeSet.actionType);
+                        setSaveStatus('error', campAction
+                            ? `${changeSet.actionType === 'encamp' ? 'Create Camp' : 'Destroy Camp'} before submitting your request.`
+                            : 'Change at least one tile before submitting a request.');
                         return;
                     }
-                    setSaveStatus('error', 'Change at least one tile before submitting a request.');
-                    return;
                 }
 
                 setSavingState(true);

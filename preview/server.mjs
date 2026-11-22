@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { build } from 'esbuild';
+import { context } from 'esbuild';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const types = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
@@ -10,7 +10,7 @@ const port = Number(process.env.PORT || 5173);
 const atlasModule = await import('../HybridCampaign/server/atlas-preview-host.ts');
 const { createAtlasPreviewHost } = atlasModule.default ?? atlasModule;
 const hybridCampaign = await createAtlasPreviewHost(root);
-const bundle = await build({
+const appBuild = await context({
   entryPoints: [path.join(root, 'preview/app.jsx')], bundle: true, write: false,
   format: 'esm', jsx: 'automatic',
   loader: { '.ts': 'ts', '.tsx': 'tsx', '.css': 'text', '.json': 'json' },
@@ -19,6 +19,7 @@ const bundle = await build({
     builder.onResolve({ filter: /^\.\.\/\.\.\/utils\/auth$/ }, () => ({ path: path.join(root, 'preview/auth.mjs') }));
   } }],
 });
+await appBuild.rebuild();
 const bridge = `<script>
   const mockFetch = parent.createPreviewFetch();
   const originalFetch = window.fetch.bind(window);
@@ -51,7 +52,14 @@ http.createServer(async (req, res) => {
       return;
     }
     if (name === '/preview/app.bundle.js') {
-      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }).end(bundle.outputFiles[0].text); return;
+      try {
+        const bundle = await appBuild.rebuild();
+        res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }).end(bundle.outputFiles[0].text);
+      } catch (error) {
+        console.error('Unable to rebuild the preview:', error);
+        res.writeHead(500, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }).end('Unable to rebuild the preview. See the server console.');
+      }
+      return;
     }
     if (name === '/' || name.startsWith('/projects')) name = '/preview/index.html';
     name = name.replace(/^\/games\/(PyrrhicWar|Expedition)\//, '/$1/');

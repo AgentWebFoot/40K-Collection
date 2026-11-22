@@ -23,7 +23,7 @@ try {
             throw "Port $previewPort is already in use. If the preview is running, open http://127.0.0.1:$previewPort instead. To restart it, press Ctrl+C in its existing terminal first."
         }
         Write-Host 'Starting the collection preview. Open the URL printed by the server and choose a project.'
-        Write-Host 'Keep this terminal open; press Ctrl+C to stop. Restart after editing JSX.'
+        Write-Host 'Keep this terminal open; press Ctrl+C to stop. Refresh the browser after editing JSX.'
         & $npmCommand run dev
         if ($LASTEXITCODE -ne 0) { throw "Preview server stopped with exit code $LASTEXITCODE." }
     }

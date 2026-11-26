@@ -25,7 +25,7 @@ function mapOnly({ rows, cols, tiles }) {
   return { rows, cols, tiles };
 }
 
-function defaultsFor(seed) {
+function defaultsFor(seed, previewAccounts = true) {
   return {
     'map.json': mapOnly(seed),
     'battles.json': { battles: [] },
@@ -34,7 +34,7 @@ function defaultsFor(seed) {
     'bounties.json': { bounties: [], pendingRequests: [] },
     'universal-equipment.json': {},
     'settings.json': Object.fromEntries(Object.values(settingNames).filter(key => seed[key] !== undefined).map(key => [key, seed[key]])),
-    'accounts.json': { nextId: 1, accounts: [] },
+    ...(previewAccounts ? { 'accounts.json': { nextId: 1, accounts: [] } } : {}),
     ...Object.fromEntries(teams.map(team => [teamFile(team), {
       units: [], items: [], purchases: [], points: { ...savedPointDefaults, ...seed.teamStats?.[team] },
     }])),
@@ -50,9 +50,9 @@ export function readExpeditionSeed(file = path.join(root, 'Expedition', 'expedit
   }
 }
 
-export function initializeExpeditionData(directory = expeditionDataDirectory, seed = readExpeditionSeed()) {
+export function initializeExpeditionData(directory = expeditionDataDirectory, seed = readExpeditionSeed(), previewAccounts = true) {
   mkdirSync(path.join(directory, 'teams'), { recursive: true });
-  for (const [file, value] of Object.entries(defaultsFor(seed))) {
+  for (const [file, value] of Object.entries(defaultsFor(seed, previewAccounts))) {
     try {
       writeFileSync(path.join(directory, file), json(value), { flag: 'wx' });
     } catch (error) {
@@ -61,8 +61,8 @@ export function initializeExpeditionData(directory = expeditionDataDirectory, se
   }
 }
 
-export function openExpeditionStorage(directory = expeditionDataDirectory, seed = readExpeditionSeed()) {
-  const defaults = defaultsFor(seed);
+export function openExpeditionStorage(directory = expeditionDataDirectory, seed = readExpeditionSeed(), { previewAccounts = true } = {}) {
+  const defaults = defaultsFor(seed, previewAccounts);
   const journalFile = path.join(directory, '.pending-write.json');
   const read = file => JSON.parse(readFileSync(path.join(directory, file), 'utf8').replace(/^\uFEFF/, ''));
 
@@ -94,11 +94,12 @@ export function openExpeditionStorage(directory = expeditionDataDirectory, seed 
     recover();
   }
 
-  initializeExpeditionData(directory, seed);
+  initializeExpeditionData(directory, seed, previewAccounts);
   recover();
 
   const fileKeys = {
-    [accountKey]: 'accounts.json', [`${prefix}shop`]: 'shop.json', [`${prefix}bounties`]: 'bounties.json',
+    ...(previewAccounts ? { [accountKey]: 'accounts.json' } : {}),
+    [`${prefix}shop`]: 'shop.json', [`${prefix}bounties`]: 'bounties.json',
     [`${prefix}universal-equipment`]: 'universal-equipment.json',
     ...Object.fromEntries(teams.map(team => [`${prefix}roster-${team}`, teamFile(team)])),
   };

@@ -115,8 +115,8 @@ npm ci
 npm run pack:games
 ```
 
-The files are `dist/game-packages/agentwebfoot-expedition-0.1.0.tgz` and
-`dist/game-packages/agentwebfoot-pyrrhic-war-0.1.0.tgz`. Use
+The files are `dist/game-packages/agentwebfoot-expedition-0.1.1.tgz` and
+`dist/game-packages/agentwebfoot-pyrrhic-war-0.1.1.tgz`. Use
 `npm run pack:expedition -- 0.2.0` or `npm run pack:pyrrhic-war -- 0.2.0`
 to release a game independently.
 
@@ -124,7 +124,7 @@ In Travelers Tavern, put the tarballs in `vendor/40k/` so the lockfile can
 resolve them on another checkout. Install either game or both:
 
 ```powershell
-npm install ./vendor/40k/agentwebfoot-expedition-0.1.0.tgz ./vendor/40k/agentwebfoot-pyrrhic-war-0.1.0.tgz
+npm install ./vendor/40k/agentwebfoot-expedition-0.1.1.tgz ./vendor/40k/agentwebfoot-pyrrhic-war-0.1.1.tgz
 npm exec --offline -- expedition-assets
 npm exec --offline -- pyrrhic-war-assets
 ```
@@ -162,6 +162,27 @@ endpoints the game screens use. Expedition reads location content from
 `/games/Expedition/location-compendium.json`, and Pyrrhic War reads compendium
 data from `/pyrrhic-war/compendium/data`. Check the hosted backend's coverage
 for the newer Expedition screens before enabling them in production.
+
+### Expedition campaign backend
+
+Build the server package from the 40K-Collection root:
+
+```powershell
+npm run pack:expedition-backend
+```
+
+Copy `dist/game-packages/agentwebfoot-expedition-backend-0.1.0.tgz` to the
+host's vendor directory and install it from the host backend. Use
+`handlesCampaignRoute` to identify the package's routes and
+`createExpeditionBackend({ directory, seed })` to open the host's existing
+private campaign directory. Pass the identity resolved by the host's
+authentication middleware when dispatching a request. The package needs the
+user ID, username, site role, Expedition role, and team. The host supplies
+membership and any existing bounty or map-request APIs.
+
+Travelers Tavern already has this adapter. Its backend dependency is in
+`backend/package.json`. Continue using the same `EXPEDITION_DATA_DIRECTORY`
+when updating the backend package.
 
 ## Tavrellis Player Command Deck
 

@@ -1,6 +1,7 @@
 /* The shared reader inherits each project's palette through its shadow host. */
 .game-compendium {
-  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--compendium-page);
   color: var(--compendium-text);
   --compendium-page: radial-gradient(circle at top, rgb(132 47 47 / 24%), transparent 34%),

@@ -86,7 +86,7 @@ function getTeamLocations(tiles) {
   return locations;
 }
 
-export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = expeditionBattlesEnabled } = {}) {
+export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = expeditionBattlesEnabled, identify } = {}) {
   let map = structuredClone(seed);
   let savedRound;
   const readSavedRound = () => {
@@ -238,13 +238,22 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
   }
   const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
   async function handleRequest(account, input, options = {}) {
-    if (!account || !roles.includes(account.role)) return reply({ message: 'Invalid simulated account.' }, 401);
-    const saved = accounts.find(account.username);
-    const role = expeditionRole({ ...saved, role: account.role });
-    const team = saved?.expeditionTeam || '';
+    let identity;
+    if (identify) {
+      identity = identify(account);
+    } else {
+      if (!account || !roles.includes(account.role)) return reply({ message: 'Invalid simulated account.' }, 401);
+      const saved = accounts.find(account.username);
+      const role = expeditionRole({ ...saved, role: account.role });
+      identity = {
+        role, team: saved?.expeditionTeam || '',
+        membershipRole: saved?.expeditionMembershipRole || 'viewer',
+        user: { id: saved?.id || `preview:${account.username.trim().toLowerCase()}`, username: account.username, role: account.role },
+      };
+    }
+    const { user, role, team, membershipRole } = identity;
     const admin = ['admin', 'owner'].includes(role);
-    const canManageRoles = admin || account.role === 'manager';
-    const user = { id: saved?.id || `preview:${account.username.trim().toLowerCase()}`, username: account.username, role: account.role };
+    const canManageRoles = admin || user.role === 'manager';
     const route = new URL(input).pathname.replace(/^\/expedition/, '');
     const method = (options.method || 'GET').toUpperCase();
     let body;
@@ -253,7 +262,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
     const forbidden = () => reply({ message: 'This account cannot perform that Expedition action.' }, 403);
     const battlesUnavailable = () => reply({ message: battlesUnavailableMessage }, 503);
     if (!battlesEnabled && ['/battles', '/battle-settings', '/battle-equipment'].includes(route)) return battlesUnavailable();
-    const own = request => request.requesterUserId === user.id;
+    const own = request => user.id != null && request.requesterUserId === user.id;
     const canSeeBattle = request => admin || own(request) || (team && battleParticipants(request.changeSet).includes(team));
     const canLog = admin || (role === 'traveler' && Boolean(team));
     const battleReview = request => {
@@ -271,8 +280,9 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         requiresAdminApproval: Object.keys(request.rewardOverrides ?? {}).length > 0,
       };
     };
-    const battleReport = ({ requesterEmail, ...request }) => ({
-      ...request, own: own(request), revision: request.revision ?? 1, review: battleReview(request),
+    const battleReport = ({ requesterEmail, historical, ...request }) => ({
+      ...request, own: own(request), revision: request.revision ?? 1,
+      review: historical ? { ...battleReview(request), canEdit: false } : battleReview(request),
       ...(request.status === 'pending' ? {
         projectedRewards: projectedBattlePayouts(request.changeSet, readMap().pointRewards, teams, map.teamStats, request.rewardOverrides),
       } : {}),
@@ -328,6 +338,9 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       }
     } catch {
       return reply({ message: 'Unable to load Expedition battles and point balances from browser storage.' }, 500);
+    }
+    if (route === '/battles' || route === '/lore') {
+      requests = [...requests.filter(request => !request.historical), ...(options.historicalBattles ?? [])];
     }
     if (route === '/shop' || route.startsWith('/shop/')) {
       const purchase = route === '/shop/purchase' && method === 'POST';
@@ -418,7 +431,7 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
       canEditExpeditionRole: canManageRoles && target.role !== 'owner',
       canEditExpeditionTeam: admin && (target.role !== 'owner' || role === 'owner'),
     });
-    if (route === '/access') return reply({ user, access: { role, membershipRole: saved?.expeditionMembershipRole || 'viewer', team, canManageRoles, canUseAdminMode: admin } });
+    if (route === '/access') return reply({ user, access: { role, membershipRole, team, canManageRoles, canUseAdminMode: admin } });
     if (route === '/roles/list') return canManageRoles ? reply({ patrons: accounts.list().map(patron) }) : forbidden();
     if (route === '/roles/set-role' && method === 'POST') {
       if (!canManageRoles) return forbidden();
@@ -905,6 +918,13 @@ export function createExpeditionApi(seed, accounts, storage, { battlesEnabled = 
         if (isBattle(request) && !commitCampaignState(next)) return saveError();
         requests = next;
         return reply({ request: isBattle(request) ? battleReport(request) : request, message: 'Expedition request saved locally.' });
+      }
+      if (method === 'POST' && route === '/map-requests/history/delete') {
+        if (!admin) return forbidden();
+        const request = requests.find(item => item.id === body.requestId && isBattle(item) && item.status === 'accepted');
+        if (!request) return reply({ message: 'Approved battle report not found.' }, 404);
+        if (!commitCampaignState(requests.filter(item => item !== request))) return saveError();
+        return reply({ message: 'Battle history entry deleted.' });
       }
       if (method === 'POST' && route === '/map-requests/confirm') {
         const request = pending.find(item => item.id === body?.requestId && isBattle(item));

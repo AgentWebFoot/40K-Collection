@@ -4030,7 +4030,7 @@
                         ${buildRequestSummaryHtml(request)}
                         ${isAdminReviewer ? `
                             <div class="request-actions">
-                                <button type="button" onclick="deleteExpeditionHistoryEvent(${request.id})">Delete Event</button>
+                                <button type="button" onclick="deleteExpeditionHistoryEvent(${escapeHtml(JSON.stringify(request.id))})">Delete Event</button>
                             </div>
                         ` : ''}
                     </div>
@@ -4190,7 +4190,7 @@
                 role = typeof nextRole === 'string' ? nextRole : 'viewer';
                 expeditionMembershipRole = typeof membershipRole === 'string' ? membershipRole : 'viewer';
                 expeditionTeam = normalizeMarker(options.team);
-                canManageExpeditionRoles = Boolean(options.canManageRoles);
+                canManageExpeditionRoles = Boolean(options.canManageRoles) && options.canEditMapRules !== false;
                 isAdminReviewer = role === 'admin' || role === 'owner';
                 isTravelerEditor = role === 'traveler';
                 renderTeamBanner();
@@ -4265,6 +4265,7 @@
                     applyRole(access.role || 'viewer', access.membershipRole || 'viewer', {
                         team: access.team,
                         canManageRoles: access.canManageRoles,
+                        canEditMapRules: access.canEditMapRules,
                     });
                 } catch (_error) {
                     sessionUser = null;

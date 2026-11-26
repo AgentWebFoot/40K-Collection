@@ -6,6 +6,7 @@
     "build": "node --import tsx preview/server.mjs --build",
     "pack:games": "node scripts/pack-games.mjs all",
     "pack:expedition": "node scripts/pack-games.mjs expedition",
+    "pack:expedition-backend": "node scripts/pack-expedition-backend.mjs",
     "pack:pyrrhic-war": "node scripts/pack-games.mjs pyrrhic-war",
     "test": "node --import tsx --test preview/mock-api.test.mjs preview/expedition-storage.test.mjs preview/hybrid-host.test.mjs"
   },

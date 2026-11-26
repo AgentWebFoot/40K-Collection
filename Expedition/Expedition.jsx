@@ -96,13 +96,13 @@ async function requestList(path, signal, method = 'GET') {
   return payload;
 }
 
-async function loadRequestAlerts(session, signal) {
+async function loadRequestAlerts(session, signal, includeBattles) {
   const admin = session.access.canUseAdminMode;
   const own = record => record.own === true || (session.user?.id != null && String(record.requesterUserId) === String(session.user.id));
   const pending = record => record?.id != null && (record.status == null || record.status === 'pending');
   const sources = [['Map', requestList(`/expedition/map-requests/${admin ? 'list' : 'mine'}`, signal, 'POST')],
     ['Bounties', loadBounties(signal)]];
-  if (expeditionBattlesEnabled) sources.push(['Battles', requestList('/expedition/battles', signal)]);
+  if (includeBattles) sources.push(['Battles', requestList('/expedition/battles', signal)]);
   const results = await Promise.allSettled(sources.map(([, request]) => request));
   const entries = [];
   const errors = [];
@@ -162,7 +162,7 @@ async function loadRequestAlerts(session, signal) {
   return { entries, errors };
 }
 
-function RequestAlerts({ session }) {
+function RequestAlerts({ session, includeBattles }) {
   const dialog = useRef(null);
   const [open, setOpen] = useState(false);
   const [data, setData] = useState(null);
@@ -173,12 +173,12 @@ function RequestAlerts({ session }) {
   useEffect(() => {
     if (!session) return;
     const controller = new AbortController();
-    loadRequestAlerts(session, controller.signal).then(
+    loadRequestAlerts(session, controller.signal, includeBattles).then(
       result => { if (!controller.signal.aborted) setData(result); },
       () => { if (!controller.signal.aborted) setData({ entries: [], errors: ['Expedition'] }); },
     );
     return () => controller.abort();
-  }, [session, revision]);
+  }, [session, revision, includeBattles]);
 
   function show() {
     setRevision(value => value + 1);
@@ -239,15 +239,15 @@ function RequestAlerts({ session }) {
   );
 }
 
-export default function Expedition({ compendiumPath } = {}) {
+export default function Expedition({ compendiumPath, campaignTools = true } = {}) {
   const [searchParams] = useSearchParams();
   const view = searchParams.get('view');
   if (view === 'bounties') return <Navigate to="/projects/ExpeditionBounties" replace />;
   if (view === 'shop') return <Navigate to="/projects/ExpeditionShop" replace />;
-  return <ExpeditionMenu compendiumPath={compendiumPath} />;
+  return <ExpeditionMenu compendiumPath={compendiumPath} campaignTools={campaignTools} />;
 }
 
-function ExpeditionMenu({ compendiumPath }) {
+function ExpeditionMenu({ compendiumPath, campaignTools }) {
   const navigate = useNavigate();
   const [session, setSession] = useState();
   const [round, setRound] = useState(null);
@@ -277,6 +277,7 @@ function ExpeditionMenu({ compendiumPath }) {
   }, [authRevision]);
 
   const canManage = Boolean(session?.access?.canManageRoles);
+  const includeBattles = campaignTools && expeditionBattlesEnabled;
   const assignedTeam = session?.access?.team;
   const teamSearch = assignedTeam && expeditionTeams.includes(assignedTeam)
     ? `?${new URLSearchParams({ team: assignedTeam })}`
@@ -299,7 +300,7 @@ function ExpeditionMenu({ compendiumPath }) {
         &lt; Back
       </button>
       <div style={styles.tools}>
-        <RequestAlerts key={authRevision} session={session} />
+        <RequestAlerts key={authRevision} session={session} includeBattles={includeBattles} />
         {canManage && (
           <button type="button" onClick={() => setSettingsOpen(true)} style={{ ...styles.button, ...styles.icon }}
             aria-label="Open Expedition settings" aria-haspopup="dialog" aria-expanded={settingsOpen} title="Expedition settings">
@@ -320,23 +321,23 @@ function ExpeditionMenu({ compendiumPath }) {
         <Link to="/projects/ExpeditionMap" style={styles.button}>
           Map
         </Link>
-        {expeditionBattlesEnabled ? (
+        {includeBattles ? (
           <Link to="/projects/ExpeditionBattles" style={styles.button}>Battles</Link>
         ) : (
           <button type="button" disabled title={battlesUnavailableMessage} style={{ ...styles.button, ...styles.disabledButton }}>
             Battles
           </button>
         )}
-        <Link to="/projects/ExpeditionLore" style={styles.button}>Lore</Link>
+        {campaignTools && <Link to="/projects/ExpeditionLore" style={styles.button}>Lore</Link>}
         <Link to="/projects/ExpeditionBounties" style={styles.button}>
           Bounties
         </Link>
-        <Link to="/projects/ExpeditionShop" style={styles.button}>
-          Shop
-        </Link>
-        <Link to={{ pathname: '/projects/ExpeditionTeams', search: teamSearch }} style={{ ...styles.button, gridColumn: '1 / -1' }}>
-          Team Management
-        </Link>
+        {campaignTools && <>
+          <Link to="/projects/ExpeditionShop" style={styles.button}>Shop</Link>
+          <Link to={{ pathname: '/projects/ExpeditionTeams', search: teamSearch }} style={{ ...styles.button, gridColumn: '1 / -1' }}>
+            Team Management
+          </Link>
+        </>}
       </div>
       {canManage && settingsOpen && (
         <ExpeditionSettings canUseAdminMode={session.access.canUseAdminMode} round={round} onRoundChange={setRound}

@@ -19,7 +19,7 @@ const projects = {
     files: ['40kCrusadeBoard.html', 'PyrrhicWarMap.png'],
   },
 };
-const [target = 'all', version = '0.1.0'] = process.argv.slice(2);
+const [target = 'all', version = '0.1.1'] = process.argv.slice(2);
 const names = target === 'all' ? Object.keys(projects) : [target];
 if (names.some(name => !Object.hasOwn(projects, name)) || !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(version)) {
   throw new Error('Choose all, expedition, or pyrrhic-war and supply a version such as 0.1.0.');

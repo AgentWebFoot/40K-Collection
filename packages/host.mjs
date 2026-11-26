@@ -10,6 +10,10 @@ export function configureHost(options) {
   host = options;
 }
 
+export function hasCampaignTools() {
+  return host?.campaignTools !== false;
+}
+
 function hostFunction(name, args) {
   if (typeof host?.[name] !== 'function') {
     throw new Error(`Configure the game host with ${name} before opening this page.`);

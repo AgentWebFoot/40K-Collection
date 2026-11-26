@@ -1,0 +1,50 @@
+/* The shared reader inherits each project's palette through its shadow host. */
+.game-compendium {
+  min-height: 100%;
+  background: var(--compendium-page);
+  color: var(--compendium-text);
+  --compendium-page: radial-gradient(circle at top, rgb(132 47 47 / 24%), transparent 34%),
+    linear-gradient(180deg, #241312, #160d0c 55%, #0c0707);
+  --compendium-panel: #201010;
+  --compendium-card: #241312;
+  --compendium-highlight: #472421;
+  --compendium-text: #f4e7d7;
+  --compendium-muted: #ccb9aa;
+  --compendium-accent: #d6aa72;
+  --compendium-border: rgb(214 170 114 / 28%);
+  --compendium-control: linear-gradient(180deg, #6c0a0a, #340505);
+  --compendium-control-border: #9d6248;
+  --compendium-selected: #e8d8c6;
+  --compendium-selected-border: #b07c61;
+  --compendium-selected-text: #241312;
+  --compendium-body-font: "Trebuchet MS", sans-serif;
+  --compendium-heading-font: Georgia, serif;
+  --compendium-title-size: clamp(1.8rem, 5vw, 2.375rem);
+  --compendium-page-title-size: 1.875rem;
+}
+.game-compendium[data-project="expedition"] {
+  --compendium-page: #1e1e1e;
+  --compendium-panel: #2a2a2a;
+  --compendium-card: #202020;
+  --compendium-highlight: #383838;
+  --compendium-text: #fff;
+  --compendium-muted: #ccc;
+  --compendium-accent: #eee;
+  --compendium-border: #444;
+  --compendium-control: #202020;
+  --compendium-control-border: #666;
+  --compendium-selected: #444;
+  --compendium-selected-border: #aaa;
+  --compendium-selected-text: #fff;
+}
+.game-compendium > nav {
+  padding: 0.75rem 1.25rem;
+}
+.game-compendium > nav a {
+  color: var(--compendium-accent);
+  text-underline-offset: 0.2em;
+}
+.game-compendium > [role="status"] {
+  padding: 0 1.25rem;
+  color: var(--compendium-muted);
+}

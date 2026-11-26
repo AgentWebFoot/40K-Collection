@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import PyrrhicWar from '../PyrrhicWar/PyrrhicWar.jsx';
 import PyrrhicWarMap from '../PyrrhicWar/PyrrhicWarMap.jsx';
-import PyrrhicWarCompendium from '../PyrrhicWar/PyrrhicWarCompendium.jsx';
 import Expedition from '../Expedition/Expedition.jsx';
 import ExpeditionMap from '../Expedition/ExpeditionMap.jsx';
 import ExpeditionTeams from '../Expedition/ExpeditionTeams.jsx';
@@ -12,8 +11,22 @@ import ExpeditionLore from '../Expedition/ExpeditionLore.jsx';
 import ExpeditionBounties from '../Expedition/ExpeditionBounties.jsx';
 import ExpeditionShop from '../Expedition/ExpeditionShop.jsx';
 import HybridCampaign from '../HybridCampaign/HybridCampaign.jsx';
-import { initialize, setAccount, getAccount, accounts } from './auth.mjs';
+import { initialize, setAccount, getAccount, accounts, fetchJson } from './auth.mjs';
+import GameCompendium from './GameCompendium.jsx';
+import { expeditionCompendium, pyrrhicWarCompendium } from './compendium-data.mjs';
 import { campaignRoles, roles, effectiveRole, expeditionRole } from './accounts.mjs';
+
+async function loadExpeditionCompendium(signal) {
+  const response = await fetch('/games/Expedition/location-compendium.json', { signal });
+  if (!response.ok) throw new Error(`Could not load Expedition locations (HTTP ${response.status}).`);
+  return response.json();
+}
+
+async function loadPyrrhicWarCompendium(signal) {
+  const { response, payload } = await fetchJson('/pyrrhic-war/compendium/data', { signal });
+  if (!response.ok) throw new Error(payload.message || `Could not load Pyrrhic War data (HTTP ${response.status}).`);
+  return payload;
+}
 
 const label = value => value[0].toUpperCase() + value.slice(1);
 function ProjectPicker() {
@@ -124,8 +137,17 @@ function App() {
         <Route path="/projects" element={<ProjectPicker />} />
         <Route path="/projects/PyrrhicWar" element={<PyrrhicWar />} />
         <Route path="/projects/PyrrhicWarMap" element={<PyrrhicWarMap />} />
-        <Route path="/projects/PyrrhicWarCompendium" element={<PyrrhicWarCompendium />} />
-        <Route path="/projects/Expedition" element={<Expedition />} />
+        <Route path="/projects/PyrrhicWarCompendium" element={
+          <GameCompendium key="pyrrhic-war" title="Pyrrhic War Compendium" projectId="pyrrhic-war"
+            backTo="/projects/PyrrhicWar" loadData={loadPyrrhicWarCompendium} configure={pyrrhicWarCompendium}
+            imageBaseUrl="/games/PyrrhicWar/compendium/images/" />
+        } />
+        <Route path="/projects/PyrrhicWarCompendium/legacy" element={<Navigate to="/projects/PyrrhicWarCompendium" replace />} />
+        <Route path="/projects/Expedition" element={<Expedition compendiumPath="/projects/ExpeditionCompendium" />} />
+        <Route path="/projects/ExpeditionCompendium" element={
+          <GameCompendium key="expedition" title="Expedition Compendium" projectId="expedition"
+            backTo="/projects/Expedition" loadData={loadExpeditionCompendium} configure={expeditionCompendium} />
+        } />
         <Route path="/projects/ExpeditionMap" element={<ExpeditionMap />} />
         <Route path="/projects/ExpeditionTeams" element={<ExpeditionTeams />} />
         <Route path="/projects/ExpeditionBounties" element={<ExpeditionBounties />} />

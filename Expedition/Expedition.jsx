@@ -239,15 +239,15 @@ function RequestAlerts({ session }) {
   );
 }
 
-export default function Expedition() {
+export default function Expedition({ compendiumPath } = {}) {
   const [searchParams] = useSearchParams();
   const view = searchParams.get('view');
   if (view === 'bounties') return <Navigate to="/projects/ExpeditionBounties" replace />;
   if (view === 'shop') return <Navigate to="/projects/ExpeditionShop" replace />;
-  return <ExpeditionMenu />;
+  return <ExpeditionMenu compendiumPath={compendiumPath} />;
 }
 
-function ExpeditionMenu() {
+function ExpeditionMenu({ compendiumPath }) {
   const navigate = useNavigate();
   const [session, setSession] = useState();
   const [round, setRound] = useState(null);
@@ -312,9 +312,11 @@ function ExpeditionMenu() {
         {round != null && <p style={styles.round}>Round {round}</p>}
       </div>
       <div style={styles.actions}>
-        <button type="button" style={{ ...styles.button, ...styles.disabledButton }}>
-          Compendium
-        </button>
+        {compendiumPath ? (
+          <Link to={compendiumPath} style={styles.button}>Compendium</Link>
+        ) : (
+          <button type="button" disabled style={{ ...styles.button, ...styles.disabledButton }}>Compendium</button>
+        )}
         <Link to="/projects/ExpeditionMap" style={styles.button}>
           Map
         </Link>

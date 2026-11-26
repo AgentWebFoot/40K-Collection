@@ -1,0 +1,113 @@
+:host {
+  background: transparent;
+  color: var(--compendium-text);
+  color-scheme: dark;
+  font-family: var(--compendium-body-font);
+}
+
+main {
+  margin-top: 0.5rem;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.style-guide-sample {
+  font-family: var(--compendium-heading-font);
+}
+
+h1,
+#style-guide-fields > :first-child .style-guide-sample {
+  font-size: var(--compendium-title-size);
+  color: var(--compendium-text);
+}
+
+h2 {
+  font-size: var(--compendium-page-title-size);
+}
+
+.prose-title,
+.ability-rank > :first-child,
+.inline-reference {
+  color: var(--compendium-accent);
+}
+
+.ability-rank > :first-child {
+  font-family: var(--compendium-heading-font);
+}
+
+nav,
+.subtabs,
+.full-compendium > section + section,
+th,
+td {
+  border-color: var(--compendium-border);
+}
+
+#content {
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+  margin-top: 0.75rem;
+  border: 1px solid var(--compendium-border);
+  border-radius: 0.5rem;
+  background: var(--compendium-panel);
+}
+
+article,
+table,
+#search-results,
+#style-guide {
+  background: var(--compendium-card);
+  border-color: var(--compendium-border);
+}
+
+button,
+input,
+select,
+.style-guide-row input,
+.style-guide-row select {
+  background: var(--compendium-control);
+  border-color: var(--compendium-control-border);
+  color: var(--compendium-text);
+}
+
+button:not(.custom-navigation-color)[aria-pressed="true"] {
+  background: var(--compendium-selected);
+  border-color: var(--compendium-selected-border);
+  color: var(--compendium-selected-text);
+}
+
+#search-results button {
+  border-color: var(--compendium-border);
+}
+
+th,
+#search-results button:hover,
+#search-results button:focus-visible {
+  background: var(--compendium-highlight);
+}
+
+#search-results small,
+.ability-meta,
+.compendium-image figcaption {
+  color: var(--compendium-muted);
+}
+
+.favorite-star {
+  color: var(--compendium-accent);
+}
+
+.favorite-star[aria-pressed="true"] {
+  color: var(--compendium-selected-text);
+}
+
+#style-guide::backdrop {
+  background: rgb(0 0 0 / 68%);
+}
+
+:focus-visible {
+  outline: 2px solid var(--compendium-accent);
+  outline-offset: 2px;
+}

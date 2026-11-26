@@ -96,12 +96,72 @@ memory and survive switching accounts. Refreshing the outer page resets them.
 Applying, saving, loading, or deleting a preview reloads the current component
 and discards unsaved edits. Saved accounts and membership assignments survive
 refreshing the outer page; map changes, requests, and favorites do not.
-Compendium mutations, request acceptance, and image management
-are not implemented: they return explicit errors. The embedded compendium
-still needs internet access for its existing React CDN scripts.
+The shared Compendium reader uses the tarball referenced in the root package
+manifest. Pyrrhic War reads its existing compendium JSON, and Expedition groups
+its location JSON by terrain. Select **Show Writer Tools**, then **Style Guide**
+to save font, size, and heading color for the current project in this browser.
+The local simulator returns explicit errors for content mutations, request
+acceptance, and image management.
 
 Run `npm test` to check the simulated access rules and supported API behavior.
 The local server binds only to `127.0.0.1` and does not write campaign source documents.
+
+## Install Expedition and Pyrrhic War in Travelers Tavern
+
+From the 40K-Collection repository root, build the two npm tarballs:
+
+```powershell
+npm ci
+npm run pack:games
+```
+
+The files are `dist/game-packages/agentwebfoot-expedition-0.1.0.tgz` and
+`dist/game-packages/agentwebfoot-pyrrhic-war-0.1.0.tgz`. Use
+`npm run pack:expedition -- 0.2.0` or `npm run pack:pyrrhic-war -- 0.2.0`
+to release a game independently.
+
+In Travelers Tavern, put the tarballs in `vendor/40k/` so the lockfile can
+resolve them on another checkout. Install either game or both:
+
+```powershell
+npm install ./vendor/40k/agentwebfoot-expedition-0.1.0.tgz ./vendor/40k/agentwebfoot-pyrrhic-war-0.1.0.tgz
+npm exec --offline -- expedition-assets
+npm exec --offline -- pyrrhic-war-assets
+```
+
+The asset commands copy the map, board, and compendium assets into
+`public/games/Expedition` and `public/games/PyrrhicWar`. Run them before
+starting or building the host. When migrating a game, replace its Git-based
+asset sync with the corresponding asset command so both sources do not write
+to the same directory. Carry forward any Travelers Tavern patches the host
+still needs before switching the production build.
+
+In the Travelers Tavern frontend, configure the installed games with the
+existing authentication module and add their route definitions to the
+existing React Router `<Routes>`:
+
+```jsx
+import * as auth from './utils/auth';
+import * as expedition from '@agentwebfoot/expedition';
+import * as pyrrhicWar from '@agentwebfoot/pyrrhic-war';
+
+expedition.configureHost(auth);
+pyrrhicWar.configureHost(auth);
+
+const gameRoutes = [...expedition.routes, ...pyrrhicWar.routes];
+
+// Inside the existing <Routes>, replace duplicate routes for those games.
+{gameRoutes.map(({ path, Component, props }) =>
+  <Route key={path} path={path} element={<Component {...props} />} />
+)}
+```
+
+The tarballs include the themed compendium readers and their Style Guides.
+Travelers Tavern still provides campaign data, authentication, and the API
+endpoints the game screens use. Expedition reads location content from
+`/games/Expedition/location-compendium.json`, and Pyrrhic War reads compendium
+data from `/pyrrhic-war/compendium/data`. Check the hosted backend's coverage
+for the newer Expedition screens before enabling them in production.
 
 ## Tavrellis Player Command Deck
 
@@ -136,8 +196,8 @@ memberships, and admin settings persist on disk. Other map requests last until t
 preview server restarts. Admins can
 also approve resupply and point-only Search and Manoeuvre requests. Approval of other
 requests, history deletion, and bounty mutations return explicit errors. The
-bounty list starts empty. Expedition's Compendium is unavailable in the supplied
-landing page.
+bounty list starts empty. Open **Compendium** from the Expedition landing page
+to browse its map locations.
 
 ### Expedition save files
 

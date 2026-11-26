@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { expeditionDataDirectory, initializeExpeditionData, openExpeditionStorag
 import { createPreviewService } from './service.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const compendiumStyles = createRequire(import.meta.url).resolve('compendium/styles.css');
 const types = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
 const port = Number(process.env.PORT || 5173);
 initializeExpeditionData();
@@ -91,6 +93,12 @@ function serve(previewRequest, hybridCampaign) {
       }
       return;
     }
+    // The bundled reader resolves its shadow-root stylesheet beside the bundle.
+    if (name === '/preview/styles.css') {
+      const stylesheet = await readFile(compendiumStyles);
+      res.writeHead(200, { 'Content-Type': 'text/css', 'Cache-Control': 'no-store' }).end(stylesheet);
+      return;
+    }
     if (name === '/preview/app.bundle.js') {
       try {
         const bundle = await appBuild.rebuild();
@@ -99,6 +107,10 @@ function serve(previewRequest, hybridCampaign) {
         console.error('Unable to rebuild the preview:', error);
         res.writeHead(500, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }).end('Unable to rebuild the preview. See the server console.');
       }
+      return;
+    }
+    if (name === '/games/PyrrhicWar/PyrrhicWarCompendium.html' || name === '/PyrrhicWar/PyrrhicWarCompendium.html') {
+      res.writeHead(302, { Location: '/projects/PyrrhicWarCompendium' }).end();
       return;
     }
     if (name === '/' || name.startsWith('/projects')) name = '/preview/index.html';

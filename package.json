@@ -4,12 +4,16 @@
   "scripts": {
     "dev": "node --import tsx preview/server.mjs",
     "build": "node --import tsx preview/server.mjs --build",
+    "pack:games": "node scripts/pack-games.mjs all",
+    "pack:expedition": "node scripts/pack-games.mjs expedition",
+    "pack:pyrrhic-war": "node scripts/pack-games.mjs pyrrhic-war",
     "test": "node --import tsx --test preview/mock-api.test.mjs preview/expedition-storage.test.mjs preview/hybrid-host.test.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "compendium": "file:PyrrhicWar/compendium-0.1.0.tgz",
     "lucide-react": "^0.468.0",
     "pg": "^8.13.1",
     "react": "18.3.1",
